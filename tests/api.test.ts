@@ -8,6 +8,7 @@ vi.mock('../server/http', async () => {
   return { ...original, authorize: vi.fn(async () => ({ client: state.client, user: { id: '10000000-0000-4000-8000-000000000001' }, profile: state.profile })), body: vi.fn(async () => state.body), json: state.json, fail: (res: ServerResponse, error: unknown) => state.json(res, error instanceof original.HttpError ? error.status : 500, { error: (error as Error).message }) };
 });
 vi.mock('../server/receipt', () => ({ BUCKET: 'minue-private', ensureReceiptPDF: state.pdf }));
+vi.mock('../server/drive', () => ({ processDriveJobs: vi.fn(async () => {}) }));
 import handler from '../api/command';
 import receiptHandler from '../api/receipt';
 const deliveryId = '40000000-0000-4000-8000-000000000001';

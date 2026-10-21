@@ -52,14 +52,22 @@ test('recipient, required signature, observation and valid PDF on Android-sized 
   await page.getByText('Agregar una observación').click();
   await page.getByLabel('Observación de la entrega').fill('Se entregaron todos los alimentos refrigerados.');
   await page.getByRole('button', { name: 'Confirmar y generar comprobante' }).click();
-  await expect(page.getByRole('heading', { name: '¡Una entrega más, mucho bienestar!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Comprobante de entrega', exact: true })).toBeVisible();
+  const photo = page.getByRole('button', { name: 'Pantalla completa para foto' });
+  await expect(photo).toBeEnabled({timeout:15000});
+  await photo.click();
+  await expect(page.getByRole('button', { name: 'Descargar comprobante PDF' })).toHaveCount(0);
+  await expect.poll(async()=>page.locator('.receipt-frame canvas').evaluate(c=>{const r=c.getBoundingClientRect();return r.width>100&&r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth;})).toBe(true);
+  await page.screenshot({path:'/tmp/minue-receipt-photo-mobile.png'});
+  await page.getByRole('button', { name: 'Mostrar u ocultar controles del comprobante' }).click();
+  await page.getByRole('button', { name: 'Salir de pantalla completa' }).click();
   const received = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar comprobante PDF' }).click();
   const download = await received;
-  expect(download.suggestedFilename()).toMatch(/^MIN-\d{8}-\d{5}\.pdf$/);
+  expect(download.suggestedFilename()).toBe('Comprobante-HUE-001.pdf');
   const pdf = await PDFDocument.load(await readFile((await download.path())!));
   expect(pdf.getPageCount()).toBe(1);
-  await download.saveAs('docs/comprobante-ejemplo.pdf');
+  await download.saveAs('/tmp/minue-comprobante-demostracion.pdf');
   await page.getByRole('button', { name: 'Volver a mis entregas' }).click();
   await page.getByRole('navigation', { name: 'Navegación móvil' }).getByRole('button', { name: 'Historial' }).click();
   await expect(page.getByText('Veterinaria Huellitas')).toBeVisible();
@@ -91,6 +99,7 @@ test('admin creates destination, contact, product and assigned delivery', async 
   await page.getByRole('button', { name: 'Nuevo destino', exact: true }).click();
   await page.getByLabel('Nombre de la veterinaria').fill('Veterinaria Prueba');
   await page.getByLabel('Dirección', { exact: true }).fill('Calle 100 # 2-30');
+  await page.getByLabel('Código de comprobante', {exact:true}).fill('PRU');
   await expect(page.getByLabel('Ciudad', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   const card = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Veterinaria Prueba' }) });
@@ -109,7 +118,7 @@ test('admin creates destination, contact, product and assigned delivery', async 
   await page.getByRole('button', { name: 'Productos', exact: true }).click();
   await page.getByRole('button', { name: 'Nuevo producto', exact: true }).click();
   await page.getByLabel('Nombre del alimento').fill('Dieta especial de prueba');
-  await page.getByLabel('Unidad de entrega').fill('porciones de 400 g');
+  await expect(page.getByText('Las cantidades se registran en kilogramos (kg).')).toBeVisible();
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   await page.getByRole('button', { name: 'Gestionar entregas', exact: true }).click();
   await page.getByRole('button', { name: 'Nueva entrega', exact: true }).click();
@@ -142,4 +151,37 @@ test('API rejects unauthenticated mutations and unsupported methods', async ({ r
   expect((await request.post('/api/command', { data: { action: 'confirm_delivery', payload: {} } })).status()).toBe(401);
   expect((await request.get('/api/command')).status()).toBe(405);
   expect((await request.get(`/api/receipt?delivery_id=${crypto.randomUUID()}`)).status()).toBe(401);
+});
+
+test('long names and decimal kg remain readable across multiple receipt pages',async({page})=>{
+  await page.goto('/?demo=1');
+  const names=Array.from({length:4},(_,i)=>'Dieta nutricional especial de pollo para pacientes de recuperación '+(i+1));
+  await page.getByRole('button',{name:'Productos',exact:true}).click();
+  for(const name of names){
+    await page.getByRole('button',{name:'Nuevo producto',exact:true}).click();
+    await page.getByLabel('Nombre del alimento').fill(name);
+    await page.getByRole('button',{name:'Guardar cambios'}).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  }
+  await page.getByRole('button',{name:'Gestionar entregas',exact:true}).click();
+  await page.getByRole('button',{name:'Editar entrega de Veterinaria Huellitas'}).last().click();
+  for(const name of ['Dieta natural · Res',...names]){
+    await page.getByLabel('Producto para agregar').selectOption({label:name});
+    await page.getByRole('button',{name:'Agregar',exact:true}).click();
+    await page.getByLabel('Cantidad de '+name,{exact:true}).fill('1.125');
+  }
+  await page.getByRole('button',{name:'Guardar cambios'}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.locator('.admin-delivery-info').filter({hasText:'Veterinaria Huellitas'}).last().click();
+  await page.getByRole('button',{name:'Confirmar entrega',exact:true}).click();
+  await page.getByRole('combobox',{name:/Quién recibe/}).selectOption('new');
+  await page.getByRole('textbox',{name:'Nombre y apellido'}).fill('María Fernanda de los Ángeles Rodríguez Villalta');
+  await sign(page);
+  await page.getByRole('button',{name:'Confirmar y generar comprobante'}).click();
+  await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeEnabled({timeout:15000});
+  await expect(page.getByText('1 / 2',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Página siguiente',exact:true}).click();
+  await expect(page.getByText('2 / 2',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Página siguiente',exact:true})).toBeDisabled();
+  await page.screenshot({path:'/tmp/minue-receipt-page-2.png'});
 });

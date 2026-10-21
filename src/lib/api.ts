@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Data, Command } from './types';
+import type { Data, Command, ReceiptState } from './types';
 async function headers() {
   const { data } = await supabase!.auth.getSession();
   if (!data.session) throw new Error('Tu sesión terminó. Vuelve a iniciar sesión.');
@@ -25,8 +25,8 @@ export async function command(input: Command) {
   if (!response.ok) throw new Error(result.error || 'No se pudo guardar. Inténtalo de nuevo.');
   return result;
 }
-export async function receiptPDF(deliveryId: string) {
-  const response = await fetch(`/api/receipt?delivery_id=${encodeURIComponent(deliveryId)}`, { headers: await headers(), cache: 'no-store' });
+export async function receiptPDF(deliveryId: string, original = false) {
+  const response = await fetch(`/api/receipt?delivery_id=${encodeURIComponent(deliveryId)}&version=${original ? 'original' : 'current'}`, { headers: await headers(), cache: 'no-store' });
   if (!response.ok) {
     const result = await response.json();
     throw new Error(result.error || 'No se pudo generar el PDF. Puedes reintentarlo desde el historial.');
@@ -38,4 +38,17 @@ export function saveBlob(blob: Blob, filename: string) {
   const link = document.createElement('a');
   link.href = url; link.download = filename; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+export async function receiptState(deliveryId: string): Promise<ReceiptState> {
+  const response = await fetch('/api/receipt-state?delivery_id=' + encodeURIComponent(deliveryId), {headers: await headers(), cache:'no-store'});
+  const data = await response.json(); if (!response.ok) throw new Error(data.error || 'No se pudo consultar el comprobante.'); return data;
+}
+export async function apiPost(path: string, payload: Record<string,unknown> = {}) {
+  const response = await fetch(path, {method:'POST',headers:await headers(),body:JSON.stringify(payload)});
+  const data=await response.json();if(!response.ok)throw new Error(data.error || 'No se pudo completar la solicitud.');return data;
+}
+export async function driveStatus() {
+  const response=await fetch('/api/drive-status',{headers:await headers(),cache:'no-store'});
+  const data=await response.json();if(!response.ok)throw new Error(data.error || 'No se pudo consultar Drive.');return data as {configured:boolean;connected:boolean;email:string;state:string};
 }

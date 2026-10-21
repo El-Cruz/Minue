@@ -1,3 +1,5 @@
+import { waitUntil } from '@vercel/functions';
+import { processDriveJobs } from '../server/drive.js';
 import type { ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { authorize, body, fail, HttpError, json, type Request } from '../server/http.js';
@@ -46,6 +48,7 @@ export default async function handler(req: Request, res: ServerResponse) {
     }
     if (action === 'confirm_delivery') {
       const receipt = data as Receipt;
+      waitUntil(processDriveJobs(client,receipt.id).catch(() => console.warn('receipt_archive_pending')));
       if (signaturePath && receipt.snapshot.signature_path !== signaturePath) await client.storage.from(BUCKET).remove([signaturePath]);
       try { await ensureReceiptPDF(client, receipt); }
       catch { return json(res, 200, { ok: true, data: receipt, pdf_pending: true, message: 'Entrega confirmada. El PDF se podrá generar desde el historial.' }); }

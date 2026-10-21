@@ -1,66 +1,71 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import type { Receipt } from './types.js';
-import { formatDate, formatTime } from './dates.js';
 
-export async function buildReceiptPDF(receipt: Receipt, signature: Uint8Array, options: { demonstration?: boolean } = {}): Promise<Uint8Array> {
-  const doc = await PDFDocument.create();
-  const regular = await doc.embedFont(StandardFonts.Helvetica);
-  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const green = rgb(.14, .30, .24), muted = rgb(.38, .43, .40);
-  const clean = (s: string) => s.replace(/[\u0000-\u001f]/g, ' ').replace(/[→↗]/g, '-').replace(/[^\x20-\x7e\xa0-\xff\u2013\u2014\u2018\u2019\u201c\u201d\u2022\u2026]/g, '?');
-  let page = doc.addPage([595, 842]), y = 785;
-  function header() {
-    page.drawText('minue', { x: 44, y, size: 30, font: bold, color: green });
-    page.drawText('NUTRICIÓN QUE CUIDA', { x: 44, y: y - 20, size: 8, font: regular, color: muted });
-    page.drawText(clean(receipt.folio), { x: 330, y: y - 2, size: 11, font: bold, color: green });
-    page.drawText('COMPROBANTE DE ENTREGA', { x: 330, y: y - 20, size: 9, font: regular, color: muted });
-    y -= 75;
-    if (options.demonstration) {
-      page.drawText('DEMOSTRACIÓN - DATOS DE EJEMPLO - SIN VALIDEZ OPERATIVA', { x: 44, y, size: 9, font: bold, color: muted });
-      y -= 24;
-    }
-  }
-  function room(height: number) {
-    if (y - height < 65) { page = doc.addPage([595, 842]); y = 785; header(); }
-  }
-  function text(value: string, size = 11, weight = false, color = green) {
-    const font = weight ? bold : regular;
-    const paragraphs = clean(value).split('\n');
-    for (const paragraph of paragraphs) {
-      let line = '';
-      const words = paragraph.match(/\S{1,50}/g) || [''];
-      for (const word of words) {
-        if (font.widthOfTextAtSize(`${line} ${word}`, size) > 500 && line) {
-          room(size + 7); page.drawText(line, { x: 44, y, size, font, color }); y -= size + 7; line = word;
-        } else line = line ? `${line} ${word}` : word;
+export type ReceiptAssets = { template: Uint8Array; font: Uint8Array };
+export async function loadReceiptAssets(): Promise<ReceiptAssets> {
+  const responses = await Promise.all(['/receipt-assets/template-v2.png', '/receipt-assets/Poppins-Regular.ttf'].map(path => fetch(path)));
+  if (responses.some(r => !r.ok)) throw new Error('No pudimos cargar el formato del comprobante.');
+  const [template, font] = await Promise.all(responses.map(async r => new Uint8Array(await r.arrayBuffer())));
+  return { template, font };
+}
+export { receiptFilename, receiptMonth } from './receipt-format.js';
+function deliveryDate(value: string) {
+  const parts = new Intl.DateTimeFormat('en-GB', {timeZone:'America/Guayaquil',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value));
+  const get = (type:string) => parts.find(p=>p.type===type)!.value;
+  return get('day') + '/' + get('month') + '/' + get('year') + ' ' + get('hour') + ':' + get('minute');
+}
+function fitText(page: PDFPage, font: PDFFont, value: string, cx: number, baselineFromTop: number, width: number, size: number, maxLines = 2, alignAbove = false) {
+  const text = value.replace(/[\u0000-\u001f]/g,' ').trim();
+  let lines: string[] = [];
+  for (; size >= 5; size -= .2) {
+    lines = [''];
+    for (const word of text.split(/\s+/)) {
+      let last = lines.length - 1;
+      const candidate=lines[last]?lines[last]+' '+word:word;
+      if(font.widthOfTextAtSize(candidate,size)<=width){lines[last]=candidate;continue;}
+      if(lines[last]){lines.push('');last++;}
+      for(const char of word){
+        if(font.widthOfTextAtSize(lines[last]+char,size)>width && lines[last]){lines.push('');last++;}
+        lines[last]+=char;
       }
-      room(size + 7); page.drawText(line, { x: 44, y, size, font, color }); y -= size + 7;
+    }
+    if (lines.length <= maxLines) break;
+  }
+  if (lines.length > maxLines) throw new Error('Un texto es demasiado largo para el comprobante.');
+  lines.forEach((line, n) => page.drawText(line.trim(), {
+    font, size, color:rgb(0.07,0.07,0.07), x:cx-font.widthOfTextAtSize(line.trim(),size)/2,
+    y:595-baselineFromTop + ((lines.length-1)/(alignAbove?1:2)-n)*size*1.1,
+  }));
+}
+export async function buildReceiptPDF(receipt: Receipt, signature: Uint8Array, options: {demonstration?: boolean; assets?: ReceiptAssets} = {}): Promise<Uint8Array> {
+  const assets = options.assets || await loadReceiptAssets();
+  const doc = await PDFDocument.create(); doc.registerFontkit(fontkit);
+  const font = await doc.embedFont(assets.font, {subset:true});
+  const background = await doc.embedPng(assets.template), ink = await doc.embedPng(signature);
+  const snapshot = receipt.snapshot;
+  if (snapshot.items.some(item => !['kg','1 kg','1kg'].includes(item.unit.trim().toLowerCase()))) throw new Error('Revisa las cantidades en kg antes de generar este formato.');
+  const chunks = Array.from({length:Math.max(1,Math.ceil(snapshot.items.length/6))},(_,n)=>snapshot.items.slice(n*6,n*6+6));
+  for (const items of chunks) {
+    const page = doc.addPage([419,595]);
+    page.drawImage(background,{x:0,y:0,width:419,height:595});
+    fitText(page,font,deliveryDate(snapshot.confirmed_at),267.53,175.502,146,11.2,1);
+    fitText(page,font,snapshot.destination.name,259.53,218.502,155,11.2,3);
+    items.forEach((item,n)=>{
+      fitText(page,font,item.name,165.50,292.83+n*24,205,10.5,2,true);
+      const quantity = new Intl.NumberFormat('es-EC',{maximumFractionDigits:3}).format(item.quantity);
+      fitText(page,font,quantity + ' kg',315.50,292.83+n*24,87,10.5,1);
+    });
+    fitText(page,font,snapshot.recipient,247.53,448.118,202,10.8,2);
+    const scale = Math.min(130/ink.width,39/ink.height);
+    page.drawImage(ink,{x:273-ink.width*scale/2,y:595-489-ink.height*scale/2,width:ink.width*scale,height:ink.height*scale});
+    if(options.demonstration) {
+      page.drawRectangle({x:30,y:34,width:359,height:16,color:rgb(1,1,1),opacity:.94});
+      page.drawText('DEMOSTRACIÓN · SIN VALIDEZ OPERATIVA',{x:77,y:39,font,size:8,color:rgb(.55,.18,.12)});
     }
   }
-  header();
-  const s = receipt.snapshot;
-  text(s.destination.name, 19, true); text(`${s.destination.address} · ${s.destination.city}`, 11, false, muted);
-  y -= 12;
-  text(`Fecha programada: ${formatDate(s.scheduled_date, { day: 'numeric', month: 'long', year: 'numeric' })}`);
-  text(`Entregado: ${formatDate(s.confirmed_at)} a las ${formatTime(s.confirmed_at)} (Bogotá)`);
-  text(`Repartidor: ${s.courier}`); y -= 18;
-  text('DETALLE DE ALIMENTOS', 10, true); y -= 5;
-  for (const item of s.items) { text(item.name, 11, true); text(`${item.quantity} ${item.unit}`, 10, false, muted); y -= 8; }
-  y -= 10; text(`Recibió: ${s.recipient}`, 12, true);
-  if (s.observation) { y -= 12; text('Observación', 10, true); text(s.observation, 10, false, muted); }
-  room(160); y -= 10;
-  const image = await doc.embedPng(signature);
-  const scale = Math.min(280 / image.width, 100 / image.height);
-  page.drawImage(image, { x: 44, y: y - 100, width: image.width * scale, height: image.height * scale });
-  y -= 115;
-  page.drawLine({ start: { x: 44, y }, end: { x: 325, y }, thickness: .6, color: muted });
-  y -= 17; text('Firma de quien recibe', 9, false, muted);
-  const pages = doc.getPages();
-  pages.forEach((p, i) => {
-    p.drawText('Minue · Comprobante de recepción · Formato provisional v1', { x: 44, y: 34, size: 8, font: regular, color: muted });
-    p.drawText(`${i + 1} / ${pages.length}`, { x: 520, y: 34, size: 8, font: regular, color: muted });
-  });
-  doc.setTitle(`Minue - ${receipt.folio}`); doc.setAuthor('Minue');
-  doc.setCreationDate(new Date(receipt.created_at));
+  doc.setTitle('Minue - ' + (receipt.receipt_number || receipt.folio));
+  doc.setAuthor('Minue');doc.setCreationDate(new Date(receipt.created_at));
+  doc.setModificationDate(new Date(receipt.created_at));
   return doc.save();
 }

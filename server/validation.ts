@@ -5,10 +5,10 @@ const uuid = z.uuid();
 const short = (max: number, min = 0) => z.string().trim().min(min).max(max);
 const date = z.iso.date();
 const optionalId = uuid.optional();
-const item = z.object({ product_id: uuid, quantity: z.number().positive().max(100000), name: short(150).optional(), unit: short(80).optional() });
+const item = z.object({ product_id: uuid, quantity: z.number().positive().max(100000).multipleOf(.001), name: short(150).optional(), unit: short(80).optional() });
 export const schemas = {
-  save_destination: z.object({ id: optionalId, name: short(150, 2), address: short(250, 2), city: z.string().optional().transform(() => DESTINATION_CITY), phone: short(40), notes: short(2000), active: z.boolean() }),
-  save_product: z.object({ id: optionalId, name: short(150, 2), unit: short(80, 1), species: z.enum(['dog', 'cat', 'both']), active: z.boolean() }),
+  save_destination: z.object({ id: optionalId, name: short(150, 2), address: short(250, 2), city: z.string().optional().transform(() => DESTINATION_CITY), phone: short(40), notes: short(2000), active: z.boolean(), receipt_code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,8}$/), receipt_next_number: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional() }),
+  save_product: z.object({ id: optionalId, name: short(150, 2), unit: z.string().optional().transform(() => 'kg'), species: z.enum(['dog', 'cat', 'both']), active: z.boolean() }),
   save_delivery: z.object({ id: optionalId, destination_id: uuid, assigned_to: uuid, scheduled_date: date, time_window: short(80), notes: short(2000), items: z.array(item).min(1).max(100).refine(items => new Set(items.map(i => i.product_id)).size === items.length, 'Hay productos duplicados.') }),
   confirm_delivery: z.object({ delivery_id: uuid, recipient_id: uuid.nullable(), new_recipient: short(100), signature: z.string().max(300000), observation: short(2000), request_id: uuid }).refine(v => Boolean(v.recipient_id) !== Boolean(v.new_recipient.length >= 2), 'Selecciona una persona o agrega su nombre.'),
   fail_delivery: z.object({ delivery_id: uuid, note: short(2000, 3) }),
