@@ -24,7 +24,7 @@ describe('Drive credentials and month boundaries',()=>{
 });
 describe('archive retry after an ambiguous upload',()=>{
  it('reuses a reserved file ID and verifies bytes instead of uploading a duplicate',async()=>{
-  const pdf=Buffer.from('%PDF-test-bytes'),receipt={id:crypto.randomUUID(),receipt_number:'PRA-065',snapshot:{confirmed_at:'2026-11-01T04:30:00Z'}};
+  const pdf=Buffer.from('%PDF-test-bytes'),receipt={id:crypto.randomUUID(),receipt_number:'PRA-065',template_version:3,snapshot:{confirmed_at:'2026-11-01T04:30:00Z'}};
   const files=new Map<string,any>(),folders=new Map<string,any>();
   let serial=0,uploads=0,pending=true,saved=false;
   const job={receipt_id:receipt.id,lease:crypto.randomUUID(),google_id:null as string|null,attempts:1};
@@ -49,6 +49,7 @@ describe('archive retry after an ambiguous upload',()=>{
    if(url.pathname.endsWith('/generateIds'))return Response.json({ids:['file-'+(++serial)]});
    if(url.hostname!=='www.googleapis.com')throw new Error('Unexpected destination');
    if(url.pathname.startsWith('/upload/')){
+    expect(Buffer.from(init!.body as Uint8Array).toString()).toContain('\"template_version\":\"3\"');
     uploads++;files.set(job.google_id!,{id:job.google_id,mimeType:'application/pdf',md5Checksum:createHash('md5').update(pdf).digest('hex')});
     throw new Error('Connection lost after Google saved the file');
    }

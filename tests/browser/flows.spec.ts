@@ -183,6 +183,7 @@ test('long names and decimal kg remain readable across multiple receipt pages',a
   await page.getByRole('button',{name:'Página siguiente',exact:true}).click();
   await expect(page.getByText('2 / 2',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Página siguiente',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeEnabled();
   await page.screenshot({path:'/tmp/minue-receipt-page-2.png'});
 });
 
@@ -217,4 +218,44 @@ test('admin removes a team member, restores them and grants administration',asyn
   await page.getByRole('button',{name:'Editar perfil de Alex'}).click();
   await expect(page.getByRole('button',{name:'Eliminar del equipo',exact:true})).toHaveCount(0);
   await expect(page.getByRole('checkbox',{name:/Administración/})).toBeDisabled();
+});
+
+test('vector loading is honest, motion-aware, retryable and leaves a still document for photos',async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'});
+  let release:()=>void=()=>{};const gate=new Promise<void>(resolve=>{release=resolve;});
+  await page.route('**/receipt-assets/Poppins-*.ttf',async route=>{await gate;await route.continue();});
+  await page.goto('/?demo=1');await openFirst(page);
+  await page.getByRole('button',{name:'Confirmar entrega',exact:true}).click();
+  await page.getByRole('combobox',{name:/Quién recibe/}).selectOption('new');
+  await page.getByRole('textbox',{name:'Nombre y apellido'}).fill('Recepción de ejemplo');await sign(page);
+  await page.getByRole('button',{name:'Confirmar y generar comprobante'}).click();
+  await expect(page.getByText('Preparando comprobante…')).toBeVisible();
+  await expect(page.locator('.clipboard-art image')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeDisabled();
+  expect(await page.locator('.clipboard-illustration').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  expect(await page.locator('.clipboard-illustration').evaluate(el=>getComputedStyle(el).animationName)).toBe('clipboard-arrive');
+  release();
+  await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeEnabled({timeout:15000});
+  await expect(page.locator('.clipboard-loading')).toHaveCount(0);
+  await page.getByRole('button',{name:'Pantalla completa para foto'}).click();
+  await page.setViewportSize({width:844,height:390});
+  await expect.poll(()=>page.locator('.receipt-frame canvas').evaluate(el=>{const r=el.getBoundingClientRect();return r.height>100&&r.bottom<=innerHeight&&r.right<=innerWidth&&r.top>=0;})).toBe(true);
+  expect(await page.locator('.receipt-viewer').evaluate(el=>el.getAnimations({subtree:true}).filter(a=>a.playState==='running').length)).toBe(0);
+});
+
+test('failed vector preparation stops loading and retries the same confirmed receipt',async({page})=>{
+  let failFont=true;
+  await page.route('**/receipt-assets/Poppins-Bold.ttf',route=>failFont?route.abort():route.continue());
+  await page.goto('/?demo=1');await openFirst(page);
+  await page.getByRole('button',{name:'Confirmar entrega',exact:true}).click();
+  await page.getByRole('combobox',{name:/Quién recibe/}).selectOption('new');
+  await page.getByRole('textbox',{name:'Nombre y apellido'}).fill('Persona de prueba');await sign(page);
+  await page.getByRole('button',{name:'Confirmar y generar comprobante'}).click();
+  await expect(page.getByRole('alert')).toContainText('La entrega está confirmada.');
+  await expect(page.locator('.clipboard-loading')).toHaveCount(0);
+  failFont=false;
+  await page.getByRole('button',{name:'Volver a intentar',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeEnabled({timeout:15000});
+  await expect(page.locator('.modal-header')).toContainText('HUE-001');
 });
