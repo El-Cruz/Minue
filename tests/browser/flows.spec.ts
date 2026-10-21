@@ -91,8 +91,16 @@ test('admin creates destination, contact, product and assigned delivery', async 
   await page.getByRole('button', { name: 'Nuevo destino', exact: true }).click();
   await page.getByLabel('Nombre de la veterinaria').fill('Veterinaria Prueba');
   await page.getByLabel('Dirección', { exact: true }).fill('Calle 100 # 2-30');
+  await page.getByLabel('Ciudad', { exact: true }).fill('Quito');
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   const card = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Veterinaria Prueba' }) });
+  const maps = card.getByRole('link', { name: 'Cómo llegar a Veterinaria Prueba en Google Maps' });
+  const mapsUrl = new URL((await maps.getAttribute('href'))!);
+  expect(mapsUrl.origin).toBe('https://www.google.com');
+  expect(mapsUrl.pathname).toBe('/maps/dir/');
+  expect(mapsUrl.searchParams.get('destination')).toBe('Calle 100 # 2-30, Quito');
+  await expect(maps).toHaveAttribute('target', '_blank');
+  await expect(maps).toHaveAttribute('rel', 'noopener noreferrer');
   await card.getByText('Ver contactos').click();
   await card.getByRole('button', { name: 'Agregar contacto' }).click();
   await page.getByLabel('Nombre y apellido').fill('Persona de prueba');
@@ -111,6 +119,8 @@ test('admin creates destination, contact, product and assigned delivery', async 
   await page.getByLabel('Cantidad de Dieta especial de prueba').fill('7');
   await page.getByRole('button', { name: 'Crear entrega', exact: true }).click();
   await expect(page.getByText('Veterinaria Prueba', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Veterinaria Prueba/ }).first().click();
+  await expect(page.getByRole('dialog').getByRole('link', { name: 'Cómo llegar a Veterinaria Prueba en Google Maps' })).toHaveAttribute('href', mapsUrl.href);
 });
 
 test('offline blocks signing and demo makes invitations explicitly unavailable', async ({ page, context }) => {

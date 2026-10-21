@@ -31,9 +31,11 @@ En **Environment Variables**, configurar estas variables para **Production**. Co
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Tu clave publicable de Supabase |
 | `SUPABASE_URL` | `https://cpycykduhgwsalgwhkxd.supabase.co` |
 | `SUPABASE_SECRET_KEY` | Tu clave secreta, solo para el servidor |
-| `APP_URL` | La URL HTTPS de producción, sin barra al final |
+| `APP_URL` | `https://minue-delta.vercel.app` para este proyecto |
 
 Si aún no conoces la URL final, configura primero las cuatro variables de Supabase y despliega. Cuando Vercel asigne el dominio, añadir `APP_URL` en **Settings → Environment Variables** y hacer **Deployments → Redeploy** para aplicarlo. Usa la dirección de producción que abrirás desde el móvil.
+
+`http://localhost:5173` es solo para desarrollo local. No copiar ese valor de `.env.example` a Production: el servidor rechazará los cambios desde el dominio público con «Origen de solicitud no autorizado». Cada cambio de `APP_URL` en Vercel requiere un nuevo despliegue.
 
 Las variables que empiezan por `VITE_` se incluyen en el navegador. La clave secreta solo va en `SUPABASE_SECRET_KEY`.
 
