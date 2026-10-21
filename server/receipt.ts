@@ -12,6 +12,12 @@ export function serverReceiptAssets() {
     .then(([template,font])=>({template,font})).catch(error=>{assets=undefined;throw error;});
 }
 export async function ensureReceiptPDF(client: SupabaseClient, receipt: Receipt, original = false): Promise<Uint8Array> {
+  if(receipt.legacy_id){
+    if(!receipt.pdf_path)throw new HttpError(409,'El comprobante histórico se conserva en Google Drive. Abre su enlace original.');
+    const saved=await client.storage.from(BUCKET).download(receipt.pdf_path);
+    if(saved.error || !saved.data)throw new HttpError(503,'No pudimos leer la copia histórica. El original sigue asociado a la entrega.');
+    return new Uint8Array(await saved.data.arrayBuffer());
+  }
   if (!receipt.receipt_number && !original) throw new HttpError(503,'Falta activar la actualización de comprobantes en Supabase.');
   const path = original ? receipt.pdf_path || 'receipts/' + receipt.id + '.pdf' : 'receipts/' + receipt.id + '/v2.pdf';
   const existing = await client.storage.from(BUCKET).download(path);

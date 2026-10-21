@@ -1,5 +1,6 @@
 import type { Receipt } from './types.js';
 export function receiptFilename(receipt: Receipt, original = false): string {
+  if(receipt.legacy_id)return 'Comprobante-'+(receipt.receipt_number||receipt.folio)+'.pdf';
   return original ? receipt.folio + '-original.pdf' : 'Comprobante-' + (receipt.receipt_number || receipt.folio) + '.pdf';
 }
 export function receiptMonth(value: string) {

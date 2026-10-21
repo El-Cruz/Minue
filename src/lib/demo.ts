@@ -26,5 +26,5 @@ export function demoData(): Data {
     status: 'pending', created_at: now,
     items: [{ product_id: products[n % 3].id, name: products[n % 3].name, quantity: [12, 8, 16, 6, 10][n], unit: products[n % 3].unit }, ...(n === 0 ? [{ product_id: products[2].id, name: products[2].name, quantity: 6, unit: products[2].unit }] : [])],
   }));
-  return { profiles: [{ id: DEMO_USER, name: 'Alex', email: 'alex@ejemplo.com', is_admin: true, is_courier: true, active: true }], destinations, products, deliveries, receipts: [], events: [], contacts: destinations.flatMap((d, n) => [{ id: `50000000-0000-4000-8000-00000000000${n + 1}`, destination_id: d.id, name: ['Laura Martínez', 'Andrés Gómez', 'Camila Torres', 'Daniel Rojas'][n] }]) };
+  return { profiles: [{ id: DEMO_USER, name: 'Alex', email: 'alex@ejemplo.com', is_admin: true, is_courier: true, active: true }, {id:'10000000-0000-4000-8000-000000000002',name:'Sofía',email:'sofia@ejemplo.com',is_admin:false,is_courier:true,active:true}], destinations, products, deliveries, receipts: [], events: [], contacts: destinations.flatMap((d, n) => [{ id: `50000000-0000-4000-8000-00000000000${n + 1}`, destination_id: d.id, name: ['Laura Martínez', 'Andrés Gómez', 'Camila Torres', 'Daniel Rojas'][n] }]) };
 }

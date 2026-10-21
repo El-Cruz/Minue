@@ -30,4 +30,14 @@ describe('private receipt storage recovery', () => {
     await expect(ensureReceiptPDF(client,receipt,true)).rejects.toMatchObject({status:404});
     expect(download).toHaveBeenCalledOnce();expect(upload).not.toHaveBeenCalled();
   });
+  it('does not fabricate a historical signature or PDF when only an original Drive reference exists',async()=>{
+    await expect(ensureReceiptPDF(client,{...receipt,legacy_id:'old-id',legacy_pdf_url:'https://drive.google.com/file/d/synthetic/view'})).rejects.toMatchObject({status:409});
+    expect(download).not.toHaveBeenCalled();expect(upload).not.toHaveBeenCalled();
+  });
+  it('serves an exact preserved historical copy for both current and original requests',async()=>{
+    download.mockResolvedValue({error:null,data:new Blob(['original-historical-bytes'])});
+    const historical={...receipt,legacy_id:'old-id',pdf_path:'legacy/old.pdf'};
+    for(const original of [false,true])expect(new TextDecoder().decode(await ensureReceiptPDF(client,historical,original))).toBe('original-historical-bytes');
+    expect(download).toHaveBeenCalledWith('legacy/old.pdf');expect(upload).not.toHaveBeenCalled();
+  });
 });

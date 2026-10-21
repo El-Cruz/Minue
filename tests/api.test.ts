@@ -26,6 +26,12 @@ beforeEach(async () => {
   state.body = { action: 'confirm_delivery', payload: { delivery_id: deliveryId, recipient_id: crypto.randomUUID(), new_recipient: '', signature: `data:image/png;base64,${(await readFile('public/icon-192.png')).toString('base64')}`, observation: '', request_id: crypto.randomUUID() } };
 });
 describe('confirmation API failure boundaries', () => {
+  it('allows the second assigned courier to confirm the shared delivery',async()=>{
+    state.client.from.mockReturnValue({select:()=>({eq:()=>({single:async()=>({data:{assigned_to:crypto.randomUUID(),partner_id:actor,status:'pending'}})})})});
+    await handler(req,res);
+    expect(state.client.rpc).toHaveBeenCalledOnce();expect(state.upload).toHaveBeenCalledOnce();
+    expect(state.json).toHaveBeenCalledWith(res,200,expect.objectContaining({ok:true}));
+  });
   it('keeps a successful confirmation successful when PDF creation fails', async () => {
     state.pdf.mockRejectedValue(new Error('storage unavailable'));
     await handler(req, res);

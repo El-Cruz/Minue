@@ -185,3 +185,16 @@ test('long names and decimal kg remain readable across multiple receipt pages',a
   await expect(page.getByRole('button',{name:'Página siguiente',exact:true})).toBeDisabled();
   await page.screenshot({path:'/tmp/minue-receipt-page-2.png'});
 });
+
+test('admin assigns two different couriers to one delivery',async({page})=>{
+  await page.goto('/?demo=1');
+  await page.getByRole('button',{name:'Gestionar entregas',exact:true}).click();
+  await page.getByRole('button',{name:'Nueva entrega',exact:true}).click();
+  await page.getByRole('combobox',{name:'Destino',exact:true}).selectOption({label:'Vet & Vida'});
+  await page.getByRole('combobox',{name:'Segundo repartidor (opcional)',exact:true}).selectOption({label:'Sofía'});
+  await expect(page.getByRole('combobox',{name:'Segundo repartidor (opcional)',exact:true}).getByRole('option',{name:'Alex',exact:true})).toHaveCount(0);
+  await page.getByLabel('Producto para agregar').selectOption({label:'Dieta natural · Res'});
+  await page.getByRole('button',{name:'Agregar',exact:true}).click();
+  await page.getByRole('button',{name:'Crear entrega',exact:true}).click();
+  await expect(page.getByText('Alex / Sofía',{exact:false})).toBeVisible();
+});

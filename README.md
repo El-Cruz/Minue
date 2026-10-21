@@ -119,3 +119,7 @@ No se incluyen datos de demostración en la migración. La operación comienza s
 Revisar errores de `/api/command` y `/api/receipt` en Vercel y avisos del proyecto en Supabase. Los errores no registran cuerpos con firmas ni claves. Configurar copias de seguridad según el plan contratado. No borrar firmas ni comprobantes de entregas confirmadas. Una interrupción entre la subida de una firma y la transacción puede dejar un archivo huérfano: se conserva para evitar pérdida cuando no se sabe si la transacción terminó; cualquier limpieza futura debe cotejar las referencias de `receipts` antes de borrar.
 
 Para cambiar el esquema tras el despliegue, crear una migración adicional. No editar la migración ya aplicada. Para una reversión de interfaz, desplegar una versión anterior compatible sin borrar los datos operativos.
+
+## Migración del sistema anterior
+
+La importación conserva identificadores, estados, fechas, kg, observaciones, referencias de firma y enlaces originales. Consulta [la estructura y guía de migración](docs/migrar-sistema-anterior.md). Las exportaciones y copias operativas deben permanecer privadas y fuera de Git. La migración no se considera terminada hasta cotejar la hoja madre, revisar Apps Script y verificar los archivos históricos accesibles.

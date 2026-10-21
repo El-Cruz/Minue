@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "db:test": "vitest run tests/database.test.ts tests/receipt-migration.test.ts",
+    "db:test": "vitest run tests/database.test.ts tests/receipt-migration.test.ts tests/legacy-import.test.ts",
     "bootstrap": "node scripts/bootstrap-admin.mjs",
     "test:pwa": "node scripts/check-pwa.mjs",
     "check:connection": "node scripts/check-connection.mjs"

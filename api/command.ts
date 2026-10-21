@@ -26,8 +26,8 @@ export default async function handler(req: Request, res: ServerResponse) {
     }
     let signaturePath: string | null = null;
     if (action === 'confirm_delivery') {
-      const delivery = await client.from('deliveries').select('assigned_to,status').eq('id', payload.delivery_id).single();
-      if (!delivery.data || delivery.data.assigned_to !== user.id || !profile.is_courier) throw new HttpError(403, 'Solo puedes confirmar tus entregas asignadas.');
+      const delivery = await client.from('deliveries').select('assigned_to,partner_id,status').eq('id', payload.delivery_id).single();
+      if (!delivery.data || (delivery.data.assigned_to !== user.id && delivery.data.partner_id !== user.id) || !profile.is_courier) throw new HttpError(403, 'Solo puedes confirmar tus entregas asignadas.');
       if (delivery.data.status !== 'delivered') {
         let signature: Buffer;
         try { signature = decodeSignature(String(payload.signature)); } catch (e) { throw new HttpError(400, (e as Error).message); }

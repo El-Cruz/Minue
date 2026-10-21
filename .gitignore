@@ -9,3 +9,6 @@ playwright-report/
 supabase/.temp/
 supabase/.branches/
 *.local
+
+migration-data/
+__pycache__/

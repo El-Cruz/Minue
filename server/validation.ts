@@ -9,12 +9,13 @@ const item = z.object({ product_id: uuid, quantity: z.number().positive().max(10
 export const schemas = {
   save_destination: z.object({ id: optionalId, name: short(150, 2), address: short(250, 2), city: z.string().optional().transform(() => DESTINATION_CITY), phone: short(40), notes: short(2000), active: z.boolean(), receipt_code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,8}$/), receipt_next_number: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional() }),
   save_product: z.object({ id: optionalId, name: short(150, 2), unit: z.string().optional().transform(() => 'kg'), species: z.enum(['dog', 'cat', 'both']), active: z.boolean() }),
-  save_delivery: z.object({ id: optionalId, destination_id: uuid, assigned_to: uuid, scheduled_date: date, time_window: short(80), notes: short(2000), items: z.array(item).min(1).max(100).refine(items => new Set(items.map(i => i.product_id)).size === items.length, 'Hay productos duplicados.') }),
+  save_delivery: z.object({ id: optionalId, destination_id: uuid, assigned_to: uuid, partner_id: uuid.nullable().optional(), scheduled_date: date, time_window: short(80), notes: short(2000), items: z.array(item).min(1).max(100).refine(items => new Set(items.map(i => i.product_id)).size === items.length, 'Hay productos duplicados.') }).refine(v=>!v.partner_id || v.partner_id!==v.assigned_to,'Los repartidores deben ser diferentes.'),
   confirm_delivery: z.object({ delivery_id: uuid, recipient_id: uuid.nullable(), new_recipient: short(100), signature: z.string().max(300000), observation: short(2000), request_id: uuid }).refine(v => Boolean(v.recipient_id) !== Boolean(v.new_recipient.length >= 2), 'Selecciona una persona o agrega su nombre.'),
   fail_delivery: z.object({ delivery_id: uuid, note: short(2000, 3) }),
   reschedule_delivery: z.object({ delivery_id: uuid, scheduled_date: date, note: short(2000, 3) }),
   update_profile: z.object({ id: uuid, name: short(100, 2), is_admin: z.boolean(), is_courier: z.boolean(), active: z.boolean() }).refine(v => v.is_admin || v.is_courier, 'Faltan permisos.'),
   invite_user: z.object({ email: z.email().max(254), name: short(100, 2), is_admin: z.boolean(), is_courier: z.boolean() }).refine(v => v.is_admin || v.is_courier, 'Faltan permisos.'),
+  link_legacy_couriers: z.object({delivery_id:uuid,profile_ids:z.array(uuid).max(2).refine(v=>new Set(v).size===v.length,'Selecciona perfiles diferentes.')}),
   save_contact: z.object({ id: optionalId, destination_id: uuid, name: short(100, 2) }),
 };
 export function validateCommand(action: unknown, payload: unknown) {

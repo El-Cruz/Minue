@@ -1,5 +1,6 @@
 import type { Data, Receipt, ReceiptSnapshot } from './types';
 import { today } from './dates';
+import {deliveryCouriers} from './legacy';
 
 export function demoCommand(data: Data, actorId: string, action: string, payload: Record<string, unknown>): Data {
   const next = structuredClone(data);
@@ -32,7 +33,7 @@ export function demoCommand(data: Data, actorId: string, action: string, payload
       next.contacts.push(recipient);
     }
     if (!recipient || !payload.signature) throw new Error('Selecciona a quien recibe y agrega su firma.');
-    const snapshot: ReceiptSnapshot = { destination: { name: destination.name, address: destination.address, city: destination.city }, items: structuredClone(delivery.items), courier: next.profiles.find(p => p.id === actorId)!.name, recipient: recipient.name, observation: String(payload.observation || ''), scheduled_date: delivery.scheduled_date, confirmed_at: now, signature_path: '' };
+    const snapshot: ReceiptSnapshot = { destination: { name: destination.name, address: destination.address, city: destination.city }, items: structuredClone(delivery.items), courier: deliveryCouriers(delivery,next.profiles), recipient: recipient.name, observation: String(payload.observation || ''), scheduled_date: delivery.scheduled_date, confirmed_at: now, signature_path: '' };
     const serial = destination.receipt_next_number || 1;
     const receiptNumber = (destination.receipt_code || 'DEMO') + '-' + String(serial).padStart(3,'0');
     destination.receipt_next_number = serial + 1;

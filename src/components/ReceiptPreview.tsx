@@ -4,6 +4,7 @@ import type { PDFDocumentProxy, PDFDocumentLoadingTask } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useApp } from '../lib/context';
 import { receiptFilename } from '../lib/receipt-format';
+import { legacyReceiptUrl } from '../lib/legacy';
 import { receiptState, apiPost, saveBlob } from '../lib/api';
 import type { Receipt, ReceiptState } from '../lib/types';
 import Modal from './Modal';
@@ -21,7 +22,7 @@ export default function ReceiptPreview({receipt,onClose}:{receipt:Receipt;onClos
       loadingTask=pdfjs.getDocument({data:new Uint8Array(await blob.arrayBuffer())});
       const document=await loadingTask.promise;
       if(live){loadedBlob.current=blob;setPdf(document);}else await loadingTask.destroy();
-    })().catch(()=>{if(live)setError('La entrega está confirmada. No pudimos abrir el PDF; vuelve a intentarlo.');});
+    })().catch(()=>{if(live)setError(receipt.legacy_id?'El comprobante histórico se conserva en Drive. Abre el original con una cuenta que tenga acceso.':'La entrega está confirmada. No pudimos abrir el PDF; vuelve a intentarlo.');});
     return()=>{live=false;if(loadingTask)void loadingTask.destroy().catch(()=>{});};
   },[receipt.id,original,retry]);
   useEffect(()=>{
@@ -47,6 +48,7 @@ export default function ReceiptPreview({receipt,onClose}:{receipt:Receipt;onClos
   async function retryDrive(){try{await apiPost('/api/receipt-retry?delivery_id='+encodeURIComponent(receipt.delivery_id));setState(await receiptState(receipt.delivery_id));}catch{setError('El comprobante sigue guardado en Minue. No pudimos iniciar el reintento de Drive.');}}
   const visible=!photo||controls,number=state?.receipt.receipt_number||receipt.receipt_number||receipt.folio;
   const status=state?.drive_status||receipt.drive_status||'pending';
+  const legacyUrl=legacyReceiptUrl(state?.receipt||receipt);
   return <Modal title="Comprobante de entrega" subtitle={number} wide onClose={()=>{if(photo)void leavePhoto();else onClose();}} className={photo?'receipt-photo-dialog '+(controls?'show-controls':''):'receipt-preview-dialog'}>
     <div ref={viewer} className={'receipt-viewer '+(photo?'photo':'')}>
       {visible && <div className="receipt-toolbar">
@@ -65,10 +67,11 @@ export default function ReceiptPreview({receipt,onClose}:{receipt:Receipt;onClos
       </div>
       {visible && <div className="receipt-footer">
         {error && <p className="form-error" role="alert">{error}<button className="text-button" onClick={()=>setRetry(retry+1)}>Volver a intentar</button></p>}
-        <p className={'receipt-drive-status '+status}>{demo?'Demostración: no se guarda en Drive.':status==='saved'?'Guardado en Drive':status==='reconnect'?'Requiere reconexión de Drive':'Pendiente de Drive'}</p>
+        <p className={'receipt-drive-status '+status}>{receipt.legacy_id?'Comprobante histórico · se conserva el original':demo?'Demostración: no se guarda en Drive.':status==='saved'?'Guardado en Drive':status==='reconnect'?'Requiere reconexión de Drive':'Pendiente de Drive'}</p>
         <div className="receipt-actions"><button className="button primary" disabled={!pdf} onClick={()=>{if(loadedBlob.current)saveBlob(loadedBlob.current,receiptFilename(state?.receipt||receipt,original));}}><Download size={16}/>Descargar comprobante PDF</button>
-        {!demo && status!=='saved' && <button className="button subtle" onClick={()=>void retryDrive()}><RefreshCw size={16}/>Reintentar Drive</button>}
-        {state?.originalAvailable && <button className="text-button" onClick={()=>setOriginal(!original)}>{original?'Ver formato nuevo':'Ver PDF original'}</button>}
+        {legacyUrl && <a className="button subtle" href={legacyUrl} target="_blank" rel="noopener noreferrer">Abrir PDF original en Google Drive</a>}
+        {!demo && !receipt.legacy_id && status!=='saved' && <button className="button subtle" onClick={()=>void retryDrive()}><RefreshCw size={16}/>Reintentar Drive</button>}
+        {!receipt.legacy_id && state?.originalAvailable && <button className="text-button" onClick={()=>setOriginal(!original)}>{original?'Ver formato nuevo':'Ver PDF original'}</button>}
         <button className="text-button" onClick={onClose}>Volver a mis entregas</button></div>
       </div>}
     </div>

@@ -3,6 +3,7 @@ import { googleMapsDirections } from '../lib/maps';
 import type { Destination } from '../lib/types';
 
 export default function GoogleMapsLink({ destination }: { destination: Pick<Destination, 'name' | 'address'> }) {
+  if(!destination.address?.trim())return null;
   return <a
     className="button subtle full maps-link"
     href={googleMapsDirections(destination)}

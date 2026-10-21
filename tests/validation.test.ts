@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { decodeSignature, validateCommand } from '../server/validation';
 import { PNG } from 'pngjs';
 describe('API input boundary', () => {
+  it('rejects the same courier in both assignment slots',()=>{
+    const courier=crypto.randomUUID();
+    expect(()=>validateCommand('save_delivery',{destination_id:crypto.randomUUID(),assigned_to:courier,partner_id:courier,scheduled_date:'2026-10-20',notes:'',time_window:'',items:[{product_id:crypto.randomUUID(),quantity:1}]})).toThrow();
+  });
   it('rejects unknown actions and role-free invitations', () => {
     expect(() => validateCommand('__proto__', {})).toThrow();
     expect(() => validateCommand('invite_user', {email:'a@example.com',name:'Admin',is_admin:false,is_courier:false})).toThrow();
