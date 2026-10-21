@@ -1,9 +1,9 @@
 import type { ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { authorize, body, fail, HttpError, json, type Request } from '../server/http';
-import { decodeSignature, validateCommand } from '../server/validation';
-import { BUCKET, ensureReceiptPDF } from '../server/receipt';
-import type { Receipt } from '../src/lib/types';
+import { authorize, body, fail, HttpError, json, type Request } from '../server/http.js';
+import { decodeSignature, validateCommand } from '../server/validation.js';
+import { BUCKET, ensureReceiptPDF } from '../server/receipt.js';
+import type { Receipt } from '../src/lib/types.js';
 
 export default async function handler(req: Request, res: ServerResponse) {
   if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return json(res, 405, { error: 'Método no permitido.' }); }

@@ -1,8 +1,8 @@
 import type { ServerResponse } from 'node:http';
 import { z } from 'zod';
-import { authorize, fail, HttpError, json, type Request } from '../server/http';
-import { ensureReceiptPDF } from '../server/receipt';
-import type { Receipt } from '../src/lib/types';
+import { authorize, fail, HttpError, json, type Request } from '../server/http.js';
+import { ensureReceiptPDF } from '../server/receipt.js';
+import type { Receipt } from '../src/lib/types.js';
 export default async function handler(req: Request, res: ServerResponse) {
   if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); return json(res, 405, { error: 'Método no permitido.' }); }
   try {

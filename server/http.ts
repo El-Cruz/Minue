@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createClient } from '@supabase/supabase-js';
-import type { Profile } from '../src/lib/types';
+import type { Profile } from '../src/lib/types.js';
 export type Request = IncomingMessage & { body?: unknown };
 export class HttpError extends Error { constructor(public status: number, message: string) { super(message); } }
 export function json(res: ServerResponse, status: number, value: unknown) {

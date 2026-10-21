@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import type { Receipt } from './types';
-import { formatDate, formatTime } from './dates';
+import type { Receipt } from './types.js';
+import { formatDate, formatTime } from './dates.js';
 
 export async function buildReceiptPDF(receipt: Receipt, signature: Uint8Array, options: { demonstration?: boolean } = {}): Promise<Uint8Array> {
   const doc = await PDFDocument.create();

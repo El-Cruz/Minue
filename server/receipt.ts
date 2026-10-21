@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildReceiptPDF } from '../src/lib/pdf';
-import type { Receipt } from '../src/lib/types';
-import { HttpError } from './http';
+import { buildReceiptPDF } from '../src/lib/pdf.js';
+import type { Receipt } from '../src/lib/types.js';
+import { HttpError } from './http.js';
 export const BUCKET = 'minue-private';
 export async function ensureReceiptPDF(client: SupabaseClient, receipt: Receipt): Promise<Uint8Array> {
   const path = receipt.pdf_path || `receipts/${receipt.id}.pdf`;
