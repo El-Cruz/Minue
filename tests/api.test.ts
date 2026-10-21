@@ -8,6 +8,7 @@ vi.mock('../server/http', async () => {
   return { ...original, authorize: vi.fn(async () => ({ client: state.client, user: { id: '10000000-0000-4000-8000-000000000001' }, profile: state.profile })), body: vi.fn(async () => state.body), json: state.json, fail: (res: ServerResponse, error: unknown) => state.json(res, error instanceof original.HttpError ? error.status : 500, { error: (error as Error).message }) };
 });
 vi.mock('../server/receipt', () => ({ BUCKET: 'minue-private', ensureReceiptPDF: state.pdf }));
+vi.mock('../server/drive', () => ({ processDriveJobs: vi.fn(async () => {}) }));
 import handler from '../api/command';
 import receiptHandler from '../api/receipt';
 const deliveryId = '40000000-0000-4000-8000-000000000001';
@@ -25,6 +26,12 @@ beforeEach(async () => {
   state.body = { action: 'confirm_delivery', payload: { delivery_id: deliveryId, recipient_id: crypto.randomUUID(), new_recipient: '', signature: `data:image/png;base64,${(await readFile('public/icon-192.png')).toString('base64')}`, observation: '', request_id: crypto.randomUUID() } };
 });
 describe('confirmation API failure boundaries', () => {
+  it('allows the second assigned courier to confirm the shared delivery',async()=>{
+    state.client.from.mockReturnValue({select:()=>({eq:()=>({single:async()=>({data:{assigned_to:crypto.randomUUID(),partner_id:actor,status:'pending'}})})})});
+    await handler(req,res);
+    expect(state.client.rpc).toHaveBeenCalledOnce();expect(state.upload).toHaveBeenCalledOnce();
+    expect(state.json).toHaveBeenCalledWith(res,200,expect.objectContaining({ok:true}));
+  });
   it('keeps a successful confirmation successful when PDF creation fails', async () => {
     state.pdf.mockRejectedValue(new Error('storage unavailable'));
     await handler(req, res);

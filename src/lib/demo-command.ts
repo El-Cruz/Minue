@@ -1,5 +1,6 @@
 import type { Data, Receipt, ReceiptSnapshot } from './types';
 import { today } from './dates';
+import {deliveryCouriers} from './legacy';
 
 export function demoCommand(data: Data, actorId: string, action: string, payload: Record<string, unknown>): Data {
   const next = structuredClone(data);
@@ -9,7 +10,7 @@ export function demoCommand(data: Data, actorId: string, action: string, payload
   if (action === 'save_destination' || action === 'save_product') {
     const collection = action === 'save_destination' ? next.destinations : next.products;
     const index = collection.findIndex(entry => entry.id === payload.id);
-    const value = { ...payload, id: payload.id || id(), active: payload.active ?? true } as never;
+    const value = { ...(index>=0?collection[index]:{}), ...payload, id: payload.id || id(), active: payload.active ?? true, ...(action==='save_destination'?{receipt_next_number:payload.receipt_next_number ?? (index>=0?next.destinations[index]?.receipt_next_number:1)}:{}) } as never;
     if (index >= 0) collection[index] = value; else collection.push(value);
   } else if (action === 'save_contact') {
     const index = next.contacts.findIndex(contact => contact.id === payload.id);
@@ -32,8 +33,11 @@ export function demoCommand(data: Data, actorId: string, action: string, payload
       next.contacts.push(recipient);
     }
     if (!recipient || !payload.signature) throw new Error('Selecciona a quien recibe y agrega su firma.');
-    const snapshot: ReceiptSnapshot = { destination: { name: destination.name, address: destination.address, city: destination.city }, items: structuredClone(delivery.items), courier: next.profiles.find(p => p.id === actorId)!.name, recipient: recipient.name, observation: String(payload.observation || ''), scheduled_date: delivery.scheduled_date, confirmed_at: now, signature_path: '' };
-    const receipt: Receipt = { id: id(), delivery_id: delivery.id, folio: `MIN-${today().replaceAll('-', '')}-${String(next.receipts.length + 1).padStart(5, '0')}`, snapshot, created_at: now, pdf_path: null, signature_data: String(payload.signature) };
+    const snapshot: ReceiptSnapshot = { destination: { name: destination.name, address: destination.address, city: destination.city }, items: structuredClone(delivery.items), courier: deliveryCouriers(delivery,next.profiles), recipient: recipient.name, observation: String(payload.observation || ''), scheduled_date: delivery.scheduled_date, confirmed_at: now, signature_path: '' };
+    const serial = destination.receipt_next_number || 1;
+    const receiptNumber = (destination.receipt_code || 'DEMO') + '-' + String(serial).padStart(3,'0');
+    destination.receipt_next_number = serial + 1;
+    const receipt: Receipt = { id: id(), delivery_id: delivery.id, folio: `MIN-${today().replaceAll('-', '')}-${String(next.receipts.length + 1).padStart(5, '0')}`, snapshot, created_at: now, pdf_path: null, receipt_number: receiptNumber, template_version: 2, drive_status: 'pending', signature_data: String(payload.signature) };
     next.receipts.push(receipt); delivery.status = 'delivered';
     event(delivery.id, 'delivered', `Recibió ${recipient.name}`);
   } else if (action === 'fail_delivery') {

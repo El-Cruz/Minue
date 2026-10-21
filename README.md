@@ -7,12 +7,12 @@ Aplicación web en español para distribuir dietas de perros y gatos. Incluye da
 - Código funcional y compilación de producción disponibles.
 - Demostración interactiva sin datos reales cuando no hay configuración de Supabase. Los cambios de la demostración solo viven en memoria y se borran al recargar.
 - Backend, migración, políticas de acceso y funciones transaccionales incluidos y comprobados localmente con PostgreSQL (PGlite).
-- **Claves verificadas para el proyecto `cpycykduhgwsalgwhkxd`.** La clave publicable responde y la clave secreta permite administrar usuarios. Faltan las tablas, el bucket privado y el primer usuario; aún no está desplegado en Vercel. El conector MCP continúa sin permiso para ese proyecto y este entorno no dispone de conexión SQL directa. No se creó nada en Talos.
+- La aplicación de producción está en https://minue-delta.vercel.app, conectada al proyecto Supabase `cpycykduhgwsalgwhkxd`. La actualización de comprobantes y Drive requiere aplicar su migración adicional y configurar Google OAuth antes de publicar esta rama.
 - La entrega de correos y el inicio de sesión con una cuenta real requieren configurar el proyecto, sus URLs y SMTP. Las pruebas locales no sustituyen esta comprobación en el servicio real.
 
 ## Abrir la aplicación
 
-Requiere Node.js 22 o superior.
+Requiere Node.js 22.13 o superior (o Node.js 24).
 
 ```sh
 npm ci
@@ -85,9 +85,13 @@ La sesión se conserva con el cliente de Supabase. No se guardan datos operativo
 
 En Chrome para Android: abrir la URL HTTPS final → menú **⋮** → **Instalar aplicación** o **Agregar a pantalla de inicio**. También puede usarse el botón de instalación cuando Chrome lo habilite. No es una APK ni requiere Google Play. La instalación real debe comprobarse en un dispositivo Android después del despliegue.
 
-## Comprobante provisional
+## Comprobantes y archivo en Drive
 
-La plantilla está en `src/lib/pdf.ts`. Incluye folio único, veterinaria, dirección, fecha programada y efectiva, detalle de alimentos, repartidor, receptor, firma y observación. Admite varias páginas. Cambiar esa plantilla cuando el propietario proporcione el formato definitivo; los PDF ya emitidos se conservan y no se sustituyen automáticamente.
+La plantilla vacía del Word y la fuente Poppins están en `public/receipt-assets`. El PDF conserva el diseño proporcionado, con seis alimentos por página, cantidades decimales en kg, fecha real en Quito, receptor y firma. Las observaciones permanecen en la aplicación. La vista previa PDF.js usa los mismos bytes que la descarga e incluye pantalla completa para fotografiar el documento.
+
+Los códigos y contadores se configuran por destino antes de su primera emisión. La numeración, la confirmación y la tarea de archivo se registran en una transacción. Los originales se conservan y el nuevo formato se guarda como una versión adicional privada. Drive usa OAuth de la cuenta de Minue, carpetas mensuales y reintentos sin duplicar archivos.
+
+Seguir [la guía de activación de comprobantes y Drive](docs/comprobantes-y-drive.md) para aplicar la migración adicional, crear el cliente OAuth, configurar las cuatro variables de servidor y activar Supabase Cron. La publicación de esta actualización depende de completar esos pasos; las pruebas locales usan datos ficticios y servicios simulados.
 
 ## Verificación
 
@@ -115,3 +119,7 @@ No se incluyen datos de demostración en la migración. La operación comienza s
 Revisar errores de `/api/command` y `/api/receipt` en Vercel y avisos del proyecto en Supabase. Los errores no registran cuerpos con firmas ni claves. Configurar copias de seguridad según el plan contratado. No borrar firmas ni comprobantes de entregas confirmadas. Una interrupción entre la subida de una firma y la transacción puede dejar un archivo huérfano: se conserva para evitar pérdida cuando no se sabe si la transacción terminó; cualquier limpieza futura debe cotejar las referencias de `receipts` antes de borrar.
 
 Para cambiar el esquema tras el despliegue, crear una migración adicional. No editar la migración ya aplicada. Para una reversión de interfaz, desplegar una versión anterior compatible sin borrar los datos operativos.
+
+## Migración del sistema anterior
+
+La importación conserva identificadores, estados, fechas, kg, observaciones, referencias de firma y enlaces originales. Consulta [la estructura y guía de migración](docs/migrar-sistema-anterior.md). Las exportaciones y copias operativas deben permanecer privadas y fuera de Git. La migración no se considera terminada hasta cotejar la hoja madre, revisar Apps Script y verificar los archivos históricos accesibles.
