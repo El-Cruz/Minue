@@ -1,0 +1,2 @@
+/* System fonts keep the app quick and usable without an external font service. */
+@font-face{font-family:'Minue Sans';src:local('Inter'),local('Segoe UI'),local('Arial');font-display:swap}
