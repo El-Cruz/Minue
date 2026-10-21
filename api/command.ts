@@ -16,6 +16,18 @@ export default async function handler(req: Request, res: ServerResponse) {
     try { validated = validateCommand(input?.action, input?.payload); } catch (e) { throw new HttpError(400, (e as Error).message); }
     const { action, payload } = validated;
     if (!['confirm_delivery', 'fail_delivery'].includes(action) && !profile.is_admin) throw new HttpError(403, 'Esta acción requiere permisos de administración.');
+    if (action === 'remove_member') {
+      if (payload.id === user.id) throw new HttpError(409, 'No puedes eliminar tu propia cuenta de administración.');
+      const { data: member, error: memberError } = await client.from('profiles').select('*').eq('id', payload.id).single();
+      if (memberError || !member) throw new HttpError(404, 'No se encontró el miembro del equipo.');
+      // Retain the profile referenced by deliveries, receipts and audit events.
+      // The existing transactional command checks the actor and protects the last active admin.
+      const { error } = await client.rpc('minue_command', { p_actor: user.id, p_action: 'update_profile', p_payload: {
+        id: member.id, name: member.name, is_admin: member.is_admin, is_courier: member.is_courier, active: false,
+      } });
+      if (error) throw new HttpError(error.code === 'P0001' ? 409 : 503, error.code === 'P0001' ? error.message : 'No se pudo retirar el acceso. Vuelve a intentarlo.');
+      return json(res, 200, { ok: true });
+    }
     if (action === 'invite_user') {
       if (!process.env.APP_URL) throw new HttpError(503, 'Falta configurar la dirección pública de Minue.');
       const { data: invited, error } = await client.auth.admin.inviteUserByEmail(String(payload.email), { redirectTo: `${process.env.APP_URL}/auth/invite`, data: { name: payload.name } });

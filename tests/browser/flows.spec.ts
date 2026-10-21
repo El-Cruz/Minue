@@ -198,3 +198,23 @@ test('admin assigns two different couriers to one delivery',async({page})=>{
   await page.getByRole('button',{name:'Crear entrega',exact:true}).click();
   await expect(page.getByText('Alex / Sofía',{exact:false})).toBeVisible();
 });
+
+test('admin removes a team member, restores them and grants administration',async({page})=>{
+  await page.goto('/?demo=1');
+  await page.getByRole('button',{name:'Equipo',exact:true}).click();
+  await page.getByRole('button',{name:'Editar perfil de Sofía'}).click();
+  await page.getByRole('button',{name:'Eliminar del equipo',exact:true}).click();
+  await expect(page.getByText(/Se conservarán sus entregas/)).toBeVisible();
+  await page.getByRole('button',{name:'Confirmar eliminación del equipo'}).click();
+  await expect(page.getByRole('button',{name:'Editar perfil de Sofía'})).toHaveCount(0);
+  await page.getByLabel('Mostrar miembros retirados o inactivos').check();
+  await page.getByRole('button',{name:'Editar perfil de Sofía'}).click();
+  await page.getByRole('checkbox',{name:/Administración/}).check();
+  await expect(page.getByRole('checkbox',{name:'Cuenta activa'})).toBeChecked();
+  await page.getByRole('button',{name:'Guardar cambios'}).click();
+  const card=page.locator('article').filter({has:page.getByRole('heading',{name:'Sofía'})});
+  await expect(card).toContainText('Administración');await expect(card).toContainText('Activo');
+  await page.getByRole('button',{name:'Editar perfil de Alex'}).click();
+  await expect(page.getByRole('button',{name:'Eliminar del equipo',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('checkbox',{name:/Administración/})).toBeDisabled();
+});

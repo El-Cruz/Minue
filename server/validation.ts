@@ -13,6 +13,7 @@ export const schemas = {
   confirm_delivery: z.object({ delivery_id: uuid, recipient_id: uuid.nullable(), new_recipient: short(100), signature: z.string().max(300000), observation: short(2000), request_id: uuid }).refine(v => Boolean(v.recipient_id) !== Boolean(v.new_recipient.length >= 2), 'Selecciona una persona o agrega su nombre.'),
   fail_delivery: z.object({ delivery_id: uuid, note: short(2000, 3) }),
   reschedule_delivery: z.object({ delivery_id: uuid, scheduled_date: date, note: short(2000, 3) }),
+  remove_member: z.object({ id: uuid }),
   update_profile: z.object({ id: uuid, name: short(100, 2), is_admin: z.boolean(), is_courier: z.boolean(), active: z.boolean() }).refine(v => v.is_admin || v.is_courier, 'Faltan permisos.'),
   invite_user: z.object({ email: z.email().max(254), name: short(100, 2), is_admin: z.boolean(), is_courier: z.boolean() }).refine(v => v.is_admin || v.is_courier, 'Faltan permisos.'),
   link_legacy_couriers: z.object({delivery_id:uuid,profile_ids:z.array(uuid).max(2).refine(v=>new Set(v).size===v.length,'Selecciona perfiles diferentes.')}),
