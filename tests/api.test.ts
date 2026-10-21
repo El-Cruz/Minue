@@ -80,3 +80,28 @@ describe('confirmation API failure boundaries', () => {
     expect(response.setHeader).toHaveBeenCalledWith('Content-Type','application/pdf');
   });
 });
+
+describe('team membership access',()=>{
+  it('denies removal by a courier before any profile lookup or mutation',async()=>{
+    state.profile.is_admin=false;state.body={action:'remove_member',payload:{id:crypto.randomUUID()}};
+    await handler(req,res);expect(state.client.from).not.toHaveBeenCalled();expect(state.client.rpc).not.toHaveBeenCalled();expect(state.json).toHaveBeenCalledWith(res,403,expect.anything());
+  });
+  it('denies self removal',async()=>{
+    state.body={action:'remove_member',payload:{id:actor}};await handler(req,res);
+    expect(state.client.rpc).not.toHaveBeenCalled();expect(state.json).toHaveBeenCalledWith(res,409,expect.anything());
+  });
+  it('revokes access through the protected transaction and preserves the historical profile',async()=>{
+    const member={id:crypto.randomUUID(),name:'Persona de ejemplo',active:true,is_admin:false,is_courier:true};
+    state.body={action:'remove_member',payload:{id:member.id}};
+    state.client.from.mockReturnValue({select:()=>({eq:()=>({single:async()=>({data:member,error:null})})})});
+    await handler(req,res);
+    expect(state.client.rpc).toHaveBeenCalledWith('minue_command',{p_actor:actor,p_action:'update_profile',p_payload:{...member,active:false}});
+    expect(state.json).toHaveBeenCalledWith(res,200,{ok:true});
+  });
+  it('preserves last-admin rejection from the database',async()=>{
+    const id=crypto.randomUUID();state.body={action:'remove_member',payload:{id}};
+    state.client.from.mockReturnValue({select:()=>({eq:()=>({single:async()=>({data:{id,name:'Otro admin',is_admin:true,is_courier:true}})})})});
+    state.client.rpc.mockResolvedValue({error:{code:'P0001',message:'Debe quedar una cuenta administradora activa.'}});
+    await handler(req,res);expect(state.json).toHaveBeenCalledWith(res,409,{error:'Debe quedar una cuenta administradora activa.'});
+  });
+});

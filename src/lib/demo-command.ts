@@ -52,6 +52,13 @@ export function demoCommand(data: Data, actorId: string, action: string, payload
     event(delivery.id, 'rescheduled', `${previous} → ${delivery.scheduled_date}. ${payload.note || ''}`);
   } else if (action === 'invite_user') {
     throw new Error('Las invitaciones solo se envían al conectar Supabase. No se envió ningún correo.');
+  } else if (action === 'remove_member') {
+    const actor=next.profiles.find(p=>p.id===actorId);
+    if(!actor?.active || !actor.is_admin)throw new Error('Se requiere administración.');
+    if(payload.id===actorId)throw new Error('No puedes eliminar tu propia cuenta de administración.');
+    const member=next.profiles.find(p=>p.id===payload.id);
+    if(!member)throw new Error('No se encontró el miembro.');
+    member.active=false;
   } else if (action === 'update_profile') {
     const profile = next.profiles.find(p => p.id === payload.id)!;
     Object.assign(profile, payload);
