@@ -2,7 +2,7 @@ import { Navigation } from 'lucide-react';
 import { googleMapsDirections } from '../lib/maps';
 import type { Destination } from '../lib/types';
 
-export default function GoogleMapsLink({ destination }: { destination: Pick<Destination, 'name' | 'address' | 'city'> }) {
+export default function GoogleMapsLink({ destination }: { destination: Pick<Destination, 'name' | 'address'> }) {
   return <a
     className="button subtle full maps-link"
     href={googleMapsDirections(destination)}

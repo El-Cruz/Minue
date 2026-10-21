@@ -1,13 +1,14 @@
 import { offsetDate, today } from './dates';
+import { DESTINATION_CITY } from './location';
 import type { Data } from './types';
 export const DEMO_USER = '10000000-0000-4000-8000-000000000001';
 export function demoData(): Data {
   const now = new Date().toISOString();
   const destinations = [
-    { id: '20000000-0000-4000-8000-000000000001', name: 'Veterinaria Huellitas', address: 'Calle 116 # 19-42', city: 'Bogotá', phone: '601 555 0101', notes: 'Recibir en la entrada principal.', active: true },
-    { id: '20000000-0000-4000-8000-000000000002', name: 'Animalia Clínica Veterinaria', address: 'Carrera 15 # 93-28', city: 'Bogotá', phone: '601 555 0102', notes: 'Preguntar por recepción.', active: true },
-    { id: '20000000-0000-4000-8000-000000000003', name: 'La Casa de las Mascotas', address: 'Calle 85 # 11-35', city: 'Bogotá', phone: '601 555 0103', notes: '', active: true },
-    { id: '20000000-0000-4000-8000-000000000004', name: 'Vet & Vida', address: 'Carrera 7 # 72-41', city: 'Bogotá', phone: '601 555 0104', notes: 'Ingreso por la puerta lateral.', active: true },
+    { id: '20000000-0000-4000-8000-000000000001', name: 'Veterinaria Huellitas', address: 'Calle 116 # 19-42', city: DESTINATION_CITY, phone: '601 555 0101', notes: 'Recibir en la entrada principal.', active: true },
+    { id: '20000000-0000-4000-8000-000000000002', name: 'Animalia Clínica Veterinaria', address: 'Carrera 15 # 93-28', city: DESTINATION_CITY, phone: '601 555 0102', notes: 'Preguntar por recepción.', active: true },
+    { id: '20000000-0000-4000-8000-000000000003', name: 'La Casa de las Mascotas', address: 'Calle 85 # 11-35', city: DESTINATION_CITY, phone: '601 555 0103', notes: '', active: true },
+    { id: '20000000-0000-4000-8000-000000000004', name: 'Vet & Vida', address: 'Carrera 7 # 72-41', city: DESTINATION_CITY, phone: '601 555 0104', notes: 'Ingreso por la puerta lateral.', active: true },
   ];
   const products: Data['products'] = [
     { id: '30000000-0000-4000-8000-000000000001', name: 'Dieta natural · Pollo', unit: 'porciones de 500 g', species: 'dog', active: true },

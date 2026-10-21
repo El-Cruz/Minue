@@ -91,7 +91,7 @@ test('admin creates destination, contact, product and assigned delivery', async 
   await page.getByRole('button', { name: 'Nuevo destino', exact: true }).click();
   await page.getByLabel('Nombre de la veterinaria').fill('Veterinaria Prueba');
   await page.getByLabel('Dirección', { exact: true }).fill('Calle 100 # 2-30');
-  await page.getByLabel('Ciudad', { exact: true }).fill('Quito');
+  await expect(page.getByLabel('Ciudad', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   const card = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Veterinaria Prueba' }) });
   const maps = card.getByRole('link', { name: 'Cómo llegar a Veterinaria Prueba en Google Maps' });
