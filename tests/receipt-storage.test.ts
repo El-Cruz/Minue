@@ -41,3 +41,10 @@ describe('private receipt storage recovery', () => {
     expect(download).toHaveBeenCalledWith('legacy/old.pdf');expect(upload).not.toHaveBeenCalled();
   });
 });
+
+it('retrieves v3 from its immutable path without falling back to or replacing v2',async()=>{
+ download.mockResolvedValueOnce({error:null,data:new Blob(['vector-pdf'])});
+ const bytes=await ensureReceiptPDF(client,{...receipt,template_version:3});
+ expect(new TextDecoder().decode(bytes)).toBe('vector-pdf');
+ expect(download).toHaveBeenCalledWith('receipts/'+receipt.id+'/v3.pdf');expect(upload).not.toHaveBeenCalled();
+});

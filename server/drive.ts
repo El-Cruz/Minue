@@ -87,7 +87,7 @@ async function uploadReceipt(client:SupabaseClient,token:string,job:DriveJob) {
   const verify=async()=>{const r=await google(token,'files/'+id+'?fields=id,md5Checksum,trashed');if(!r.ok)return false;const f=await r.json();return !f.trashed && f.md5Checksum===md5;};
   if(!await verify()) {
     const boundary='minue-'+randomBytes(12).toString('hex');
-    const metadata={id:job.google_id,name:receiptFilename(receipt),parents:[folder],appProperties:{receipt_id:receipt.id,template_version:'2'}};
+    const metadata={id:job.google_id,name:receiptFilename(receipt),parents:[folder],appProperties:{receipt_id:receipt.id,template_version:String(receipt.template_version===3?3:2)}};
     const body=Buffer.concat([Buffer.from('--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(metadata)+'\r\n--'+boundary+'\r\nContent-Type: application/pdf\r\n\r\n'),Buffer.from(pdf),Buffer.from('\r\n--'+boundary+'--')]);
     const response=await google(token,'files?uploadType=multipart&fields=id,md5Checksum',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+boundary},body},true);
     if(!response.ok && response.status!==409)throw new DriveError('temporary','No se pudo subir el comprobante a Drive.');

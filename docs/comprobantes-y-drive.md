@@ -56,3 +56,13 @@ Los estados visibles son «Pendiente de Drive», «Guardado en Drive» y «Requi
 ## Importación posterior de la base antigua
 
 Conservar los códigos originales de los comprobantes importados y las fechas reales de confirmación. No volver a ejecutar la inicialización PRA-065 ni reducir receipt_next_number. Al finalizar una importación, conservar el mayor entre el contador vigente y el máximo número importado más uno. La importación y deduplicación de esa base no forman parte de este cambio.
+
+## Formato vectorial v3 y animación
+
+El formato v3 dibuja el portapapeles, la pinza, la hoja, los textos y los adornos con primitivas vectoriales. La composición compartida produce el SVG de carga y el fondo del PDF; la firma es la única imagen incrustada. La vista final sigue mostrando con PDF.js el mismo archivo que se descarga y se envía a Drive.
+
+Primero publicar el código compatible con v2/v3. Después ejecutar `docs/activar-comprobante-vectorial.sql` en el SQL Editor del proyecto Minue. Este SQL activa v3 solo para las siguientes confirmaciones; no cambia recibos anteriores, números, fechas ni tareas de Drive existentes. El archivo nuevo se guarda en `receipts/{id}/v3.pdf`. Las versiones 1 y 2 y los PDF históricos conservan sus rutas y bytes.
+
+La carga termina cuando la página se renderiza, sin demoras artificiales. El modo foto queda inmóvil, adapta la página completa al espacio disponible y permite recuperar controles tocando el documento. La preferencia del sistema de movimiento reducido desactiva las animaciones.
+
+Para revisar sin generar entregas reales: abrir la demostración, confirmar una entrega ficticia con una firma de ejemplo y abrir «Pantalla completa para foto». Antes de activar SQL, las entregas reales siguen emitiéndose como v2.

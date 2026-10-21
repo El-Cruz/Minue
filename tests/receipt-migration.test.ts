@@ -84,3 +84,20 @@ describe('receipt numbering, originals and durable archive',()=>{
   expect((await db.query('select * from public.receipts where delivery_id=$1',[deliveryId])).rows).toHaveLength(0);
  });
 });
+
+it('activates vector v3 only for new receipts and preserves numbering, originals and retry idempotency',async()=>{
+ await db.exec(await readFile('supabase/migrations/20261021154113_legacy_sheet_import.sql','utf8'));
+ await db.exec(await readFile('supabase/migrations/20261021155718_two_couriers.sql','utf8'));
+ const before=(await db.query('select * from public.receipts order by id')).rows;
+ const documents=(await db.query('select * from public.receipt_documents order by receipt_id,version')).rows;
+ const counter=(await db.query<any>('select receipt_next_number from public.destinations where id=$1',[destination])).rows[0].receipt_next_number;
+ await db.exec(await readFile('docs/activar-comprobante-vectorial.sql','utf8'));
+ expect((await db.query('select * from public.receipts order by id')).rows).toEqual(before);
+ expect((await db.query('select * from public.receipt_documents order by receipt_id,version')).rows).toEqual(documents);
+ const id=await delivery();const [one,two]=await Promise.all([rpc('confirm_delivery',confirm(id)),rpc('confirm_delivery',confirm(id))]);
+ expect(one.id).toBe(two.id);expect(one.template_version).toBe(3);expect(one.receipt_number).toBe('PRA-'+String(counter).padStart(3,'0'));
+ const newDocs=(await db.query<any>('select * from public.receipt_documents where receipt_id=$1',[one.id])).rows;
+ expect(newDocs).toHaveLength(1);expect(newDocs[0].version).toBe(3);expect(newDocs[0].pdf_path).toBe('receipts/'+one.id+'/v3.pdf');
+ expect((await db.query('select * from private.receipt_drive_jobs where receipt_id=$1',[one.id])).rows).toHaveLength(1);
+ expect((await db.query<any>('select receipt_next_number from public.destinations where id=$1',[destination])).rows[0].receipt_next_number).toBe(Number(counter)+1);
+});
