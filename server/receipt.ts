@@ -4,12 +4,15 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { buildReceiptPDF, type ReceiptAssets } from '../src/lib/pdf.js';
 import type { Receipt } from '../src/lib/types.js';
+import { SHEET_FONT_FILES } from '../src/lib/receipt-asset-files.js';
 import { HttpError } from './http.js';
 export const BUCKET = 'minue-private';
 const assets = new Map<number,Promise<ReceiptAssets>>();
 export function serverReceiptAssets(version = 2): Promise<ReceiptAssets> {
   const cached=assets.get(version);if(cached)return cached;
-  const pending=(version===3
+  const pending=(version===4
+    ? Promise.all(Object.entries(SHEET_FONT_FILES).map(async([key,file])=>[key,await readFile(join(process.cwd(),'public','receipt-assets',file))] as const)).then(entries=>({font:entries[0][1],...Object.fromEntries(entries)}))
+    : version===3
     ? Promise.all(['Poppins-Regular.ttf','Poppins-Bold.ttf'].map(name=>readFile(join(process.cwd(),'public','receipt-assets',name)))).then(([font,boldFont])=>({font,boldFont}))
     : Promise.all(['template-v2.png','Poppins-Regular.ttf'].map(name=>readFile(join(process.cwd(),'public','receipt-assets',name)))).then(([template,font])=>({template,font})))
     .catch(error=>{assets.delete(version);throw error;});
@@ -23,7 +26,7 @@ export async function ensureReceiptPDF(client: SupabaseClient, receipt: Receipt,
     return new Uint8Array(await saved.data.arrayBuffer());
   }
   if (!receipt.receipt_number && !original) throw new HttpError(503,'Falta activar la actualización de comprobantes en Supabase.');
-  const version = receipt.template_version===3?3:2;
+  const version = receipt.template_version===4?4:receipt.template_version===3?3:2;
   const path = original ? receipt.pdf_path || 'receipts/' + receipt.id + '.pdf' : 'receipts/' + receipt.id + '/v'+version+'.pdf';
   const existing = await client.storage.from(BUCKET).download(path);
   if (!existing.error && existing.data) return new Uint8Array(await existing.data.arrayBuffer());

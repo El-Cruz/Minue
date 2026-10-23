@@ -8,7 +8,8 @@ export default function Signature({ onChange, disabled }: { onChange: (value: st
   const [hasInk, setHasInk] = useState(false);
   const callback = useRef(onChange); callback.current = onChange;
   function redraw() {
-    const c = canvas.current!, ctx = c.getContext('2d')!;
+    const c = canvas.current;if(!c)return;
+    const ctx=c.getContext('2d');if(!ctx)return;
     const r = c.getBoundingClientRect();
     const ratio = window.devicePixelRatio || 1;
     c.width = Math.round(r.width * ratio); c.height = Math.round(r.height * ratio);
@@ -20,7 +21,7 @@ export default function Signature({ onChange, disabled }: { onChange: (value: st
     }
   }
   useEffect(() => {
-    const observer = new ResizeObserver(() => { redraw(); if (paths.current.some(p => p.length > 2)) callback.current(canvas.current!.toDataURL('image/png')); });
+    const observer = new ResizeObserver(() => { if(!canvas.current)return;redraw(); if (paths.current.some(p => p.length > 2)) callback.current(canvas.current.toDataURL('image/png')); });
     observer.observe(canvas.current!); return () => observer.disconnect();
   }, []);
   function point(e: React.PointerEvent<HTMLCanvasElement>) {

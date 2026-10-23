@@ -11,6 +11,7 @@ vi.mock('../server/receipt', () => ({ BUCKET: 'minue-private', ensureReceiptPDF:
 vi.mock('../server/drive', () => ({ processDriveJobs: vi.fn(async () => {}) }));
 import handler from '../api/command';
 import receiptHandler from '../api/receipt';
+import {processDriveJobs} from '../server/drive';
 const deliveryId = '40000000-0000-4000-8000-000000000001';
 const actor = '10000000-0000-4000-8000-000000000001';
 const receipt = { id: crypto.randomUUID(), delivery_id: deliveryId, snapshot: { signature_path: 'old/signature.png' } };
@@ -104,4 +105,20 @@ describe('team membership access',()=>{
     state.client.rpc.mockResolvedValue({error:{code:'P0001',message:'Debe quedar una cuenta administradora activa.'}});
     await handler(req,res);expect(state.json).toHaveBeenCalledWith(res,409,{error:'Debe quedar una cuenta administradora activa.'});
   });
+});
+
+it('rejects a courier attempting to manage Drive retries even for their own receipt',async()=>{
+ const retry=await import('../api/receipt-retry');state.profile.is_admin=false;
+ state.client.from.mockImplementation((table:string)=>({select:()=>({eq:()=>({single:async()=>({data:table==='deliveries'?{assigned_to:actor}:receipt})})})}));
+ await retry.default({method:'POST',url:'/api/receipt-retry?delivery_id='+deliveryId,headers:{}} as Request,res);
+ expect(state.client.rpc).not.toHaveBeenCalled();expect(state.json).toHaveBeenCalledWith(res,403,{error:'Solo administración gestiona el archivo en Drive.'});
+});
+
+it('confirms a courier delivery and serves its PDF despite a Drive connection failure',async()=>{
+ state.profile.is_admin=false;
+ const confirmed={...receipt,drive_status:'reconnect'};
+ state.client.rpc.mockResolvedValue({data:confirmed,error:null});
+ vi.mocked(processDriveJobs).mockRejectedValueOnce(new Error('Drive disconnected'));
+ await handler(req,res);
+ expect(state.pdf).toHaveBeenCalled();expect(state.json).toHaveBeenCalledWith(res,200,{ok:true,data:confirmed});
 });

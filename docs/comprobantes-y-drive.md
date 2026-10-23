@@ -66,3 +66,13 @@ Primero publicar el código compatible con v2/v3. Después ejecutar `docs/activa
 La carga termina cuando la página se renderiza, sin demoras artificiales. El modo foto queda inmóvil, adapta la página completa al espacio disponible y permite recuperar controles tocando el documento. La preferencia del sistema de movimiento reducido desactiva las animaciones.
 
 Para revisar sin generar entregas reales: abrir la demostración, confirmar una entrega ficticia con una firma de ejemplo y abrir «Pantalla completa para foto». Antes de activar SQL, las entregas reales siguen emitiéndose como v2.
+
+## Hoja Minuë v4 y archivo administrado
+
+La vista posterior a confirmar ya no muestra estados ni acciones de Google Drive, incluso si quien reparte también tiene permisos de administración. La confirmación, firma, vista previa y descarga funcionan con la copia privada de Minue aunque Drive esté desconectado. En **Mi aplicación → Comprobantes en Google Drive**, administración puede conectar la cuenta, consultar pendientes y reintentarlos. La API de reintento también requiere administración.
+
+La nueva hoja v4 reproduce la referencia Minuë, sin tablero ni pinza: proporción 853:1280, siete filas por página, encabezado «PET NUTRITION & SPA», lema e ilustraciones vectoriales. La animación utiliza esta hoja. El encabezado conserva «KG / UNID.» del diseño, pero la aplicación sigue registrando exclusivamente kg. Las observaciones permanecen fuera del PDF.
+
+Después de publicar el código, ejecutar **solo `docs/activar-comprobante-minue-v4.sql`** en Supabase. Funciona directamente desde la base que emite v2; no es necesario activar v3 antes. Cambia únicamente el formato predeterminado de nuevas emisiones y amplía las versiones admitidas. No reemite ni sobrescribe comprobantes previos, ni cambia números o fechas. Los PDF nuevos se guardan como `receipts/{id}/v4.pdf` y mantienen su nombre público de comprobante. El mismo archivo se usa en PDF.js, descarga y Drive.
+
+Las familias Oswald, Caveat y Poppins se distribuyen con sus licencias OFL dentro de `public/receipt-assets`. La firma capturada es la única imagen incrustada en el PDF v4.

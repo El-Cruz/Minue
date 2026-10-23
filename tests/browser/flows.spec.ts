@@ -155,7 +155,7 @@ test('API rejects unauthenticated mutations and unsupported methods', async ({ r
 
 test('long names and decimal kg remain readable across multiple receipt pages',async({page})=>{
   await page.goto('/?demo=1');
-  const names=Array.from({length:4},(_,i)=>'Dieta nutricional especial de pollo para pacientes de recuperación '+(i+1));
+  const names=Array.from({length:5},(_,i)=>'Dieta nutricional especial de pollo para pacientes de recuperación '+(i+1));
   await page.getByRole('button',{name:'Productos',exact:true}).click();
   for(const name of names){
     await page.getByRole('button',{name:'Nuevo producto',exact:true}).click();
@@ -223,21 +223,21 @@ test('admin removes a team member, restores them and grants administration',asyn
 test('vector loading is honest, motion-aware, retryable and leaves a still document for photos',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
   let release:()=>void=()=>{};const gate=new Promise<void>(resolve=>{release=resolve;});
-  await page.route('**/receipt-assets/Poppins-*.ttf',async route=>{await gate;await route.continue();});
+  await page.route('**/receipt-assets/*',async route=>{await gate;await route.continue();});
   await page.goto('/?demo=1');await openFirst(page);
   await page.getByRole('button',{name:'Confirmar entrega',exact:true}).click();
   await page.getByRole('combobox',{name:/Quién recibe/}).selectOption('new');
   await page.getByRole('textbox',{name:'Nombre y apellido'}).fill('Recepción de ejemplo');await sign(page);
   await page.getByRole('button',{name:'Confirmar y generar comprobante'}).click();
   await expect(page.getByText('Preparando comprobante…')).toBeVisible();
-  await expect(page.locator('.clipboard-art image')).toHaveCount(0);
+  await expect(page.locator('.sheet-art image')).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeDisabled();
-  expect(await page.locator('.clipboard-illustration').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
+  expect(await page.locator('.sheet-illustration').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
   await page.emulateMedia({reducedMotion:'no-preference'});
-  expect(await page.locator('.clipboard-illustration').evaluate(el=>getComputedStyle(el).animationName)).toBe('clipboard-arrive');
+  expect(await page.locator('.sheet-illustration').evaluate(el=>getComputedStyle(el).animationName)).toBe('sheet-arrive');
   release();
   await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeEnabled({timeout:15000});
-  await expect(page.locator('.clipboard-loading')).toHaveCount(0);
+  await expect(page.locator('.sheet-loading')).toHaveCount(0);
   await page.getByRole('button',{name:'Pantalla completa para foto'}).click();
   await page.setViewportSize({width:844,height:390});
   await expect.poll(()=>page.locator('.receipt-frame canvas').evaluate(el=>{const r=el.getBoundingClientRect();return r.height>100&&r.bottom<=innerHeight&&r.right<=innerWidth&&r.top>=0;})).toBe(true);
@@ -246,14 +246,14 @@ test('vector loading is honest, motion-aware, retryable and leaves a still docum
 
 test('failed vector preparation stops loading and retries the same confirmed receipt',async({page})=>{
   let failFont=true;
-  await page.route('**/receipt-assets/Poppins-Bold.ttf',route=>failFont?route.abort():route.continue());
+  await page.route('**/receipt-assets/Oswald-Bold.woff',route=>failFont?route.abort():route.continue());
   await page.goto('/?demo=1');await openFirst(page);
   await page.getByRole('button',{name:'Confirmar entrega',exact:true}).click();
   await page.getByRole('combobox',{name:/Quién recibe/}).selectOption('new');
   await page.getByRole('textbox',{name:'Nombre y apellido'}).fill('Persona de prueba');await sign(page);
   await page.getByRole('button',{name:'Confirmar y generar comprobante'}).click();
   await expect(page.getByRole('alert')).toContainText('La entrega está confirmada.');
-  await expect(page.locator('.clipboard-loading')).toHaveCount(0);
+  await expect(page.locator('.sheet-loading')).toHaveCount(0);
   failFont=false;
   await page.getByRole('button',{name:'Volver a intentar',exact:true}).click();
   await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeEnabled({timeout:15000});

@@ -1,10 +1,17 @@
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import { drawVectorReceipt } from './receipt-vector.js';
+import { SHEET_FONT_FILES } from './receipt-asset-files.js';
+import { SHEET_SIZE, SHEET_LAYOUT, RECEIPT_SHEET_SCENE } from './receipt-sheet-scene.js';
+import { drawReceiptScene, drawVectorReceipt } from './receipt-vector.js';
 import type { Receipt } from './types.js';
 
-export type ReceiptAssets = { template?: Uint8Array; font: Uint8Array; boldFont?: Uint8Array };
+export type ReceiptAssets = { template?: Uint8Array; font: Uint8Array; boldFont?: Uint8Array; logoFont?:Uint8Array; labelFont?:Uint8Array; titleFont?:Uint8Array; scriptFont?:Uint8Array };
 export async function loadReceiptAssets(version = 2): Promise<ReceiptAssets> {
+  if(version===4){
+    const entries=await Promise.all(Object.entries(SHEET_FONT_FILES).map(async([key,file])=>{
+      const response=await fetch('/receipt-assets/'+file);if(!response.ok)throw new Error('No pudimos cargar la tipografía del comprobante.');return [key,new Uint8Array(await response.arrayBuffer())] as const;
+    }));return Object.fromEntries(entries) as ReceiptAssets;
+  }
   if(version===3){
     const responses=await Promise.all(['Poppins-Regular.ttf','Poppins-Bold.ttf'].map(name=>fetch('/receipt-assets/'+name)));
     if(responses.some(r=>!r.ok))throw new Error('No pudimos cargar la tipografía.');
@@ -41,22 +48,41 @@ function fitText(page: PDFPage, font: PDFFont, value: string, cx: number, baseli
   if (lines.length > maxLines) throw new Error('Un texto es demasiado largo para el comprobante.');
   lines.forEach((line, n) => page.drawText(line.trim(), {
     font, size, color:rgb(0.07,0.07,0.07), x:cx-font.widthOfTextAtSize(line.trim(),size)/2,
-    y:595-baselineFromTop + ((lines.length-1)/(alignAbove?1:2)-n)*size*1.1,
+    y:page.getHeight()-baselineFromTop + ((lines.length-1)/(alignAbove?1:2)-n)*size*1.1,
   }));
 }
 export async function buildReceiptPDF(receipt: Receipt, signature: Uint8Array, options: {demonstration?: boolean; assets?: ReceiptAssets} = {}): Promise<Uint8Array> {
-  const assets = options.assets || await loadReceiptAssets(receipt.template_version===3?3:2);
+  const assets = options.assets || await loadReceiptAssets(receipt.template_version===4?4:receipt.template_version===3?3:2);
   const doc = await PDFDocument.create(); doc.registerFontkit(fontkit);
   const font = await doc.embedFont(assets.font, {subset:true});
+  const sheet=receipt.template_version===4;
   const vector=receipt.template_version===3;
   const bold=vector&&assets.boldFont?await doc.embedFont(assets.boldFont,{subset:true}):font;
-  if(!vector && !assets.template)throw new Error('Falta la plantilla original del comprobante.');
-  const background = vector?null:await doc.embedPng(assets.template!), ink = await doc.embedPng(signature);
+  if(!sheet && !vector && !assets.template)throw new Error('Falta la plantilla original del comprobante.');
+  const background = sheet||vector?null:await doc.embedPng(assets.template!), ink = await doc.embedPng(signature);
+  const faces=sheet?await Promise.all(['logoFont','labelFont','titleFont','scriptFont'].map(async key=>{
+    const bytes=assets[key as keyof ReceiptAssets];if(!bytes)throw new Error('Falta una tipografía del comprobante.');return doc.embedFont(bytes,{subset:true});
+  })):[];
   const snapshot = receipt.snapshot;
   if (snapshot.items.some(item => !['kg','1 kg','1kg'].includes(item.unit.trim().toLowerCase()))) throw new Error('Revisa las cantidades en kg antes de generar este formato.');
-  const chunks = Array.from({length:Math.max(1,Math.ceil(snapshot.items.length/6))},(_,n)=>snapshot.items.slice(n*6,n*6+6));
+  const rows=sheet?SHEET_LAYOUT.rows:6;
+  const chunks = Array.from({length:Math.max(1,Math.ceil(snapshot.items.length/rows))},(_,n)=>snapshot.items.slice(n*rows,n*rows+rows));
   for (const items of chunks) {
-    const page = doc.addPage([419,595]);
+    const page = doc.addPage(sheet?[SHEET_SIZE.width,SHEET_SIZE.height]:[419,595]);
+    if(sheet){
+      drawReceiptScene(page,RECEIPT_SHEET_SCENE,SHEET_SIZE.height,{body:font,logo:faces[0],label:faces[1],title:faces[2],script:faces[3]});
+      fitText(page,font,deliveryDate(snapshot.confirmed_at),277.5,173.5,210,11.2,1);
+      fitText(page,font,snapshot.destination.name,277.5,221.8,210,10.5,3);
+      items.forEach((item,n)=>{
+        const baseline=SHEET_LAYOUT.tableTop+15.5+n*SHEET_LAYOUT.rowHeight;
+        fitText(page,font,item.name,SHEET_LAYOUT.productCenter,baseline,SHEET_LAYOUT.productWidth,9.7,2);
+        const quantity=new Intl.NumberFormat('es-EC',{maximumFractionDigits:3}).format(item.quantity);
+        fitText(page,font,quantity+' kg',SHEET_LAYOUT.quantityCenter,baseline,SHEET_LAYOUT.quantityWidth,10,1);
+      });
+      fitText(page,font,snapshot.recipient,263,472.7,244,10.2,2);
+      const scale=Math.min(210/ink.width,25/ink.height);
+      page.drawImage(ink,{x:274.75-ink.width*scale/2,y:SHEET_SIZE.height-507-ink.height*scale/2,width:ink.width*scale,height:ink.height*scale});
+    }else{
     if(vector)drawVectorReceipt(page,font,bold);
     else page.drawImage(background!,{x:0,y:0,width:419,height:595});
     fitText(page,font,deliveryDate(snapshot.confirmed_at),267.53,175.502,146,11.2,1);
@@ -69,7 +95,9 @@ export async function buildReceiptPDF(receipt: Receipt, signature: Uint8Array, o
     fitText(page,font,snapshot.recipient,vector?253:247.53,448.118,vector?190:202,10.8,2);
     const scale = Math.min(130/ink.width,39/ink.height);
     page.drawImage(ink,{x:273-ink.width*scale/2,y:595-489-ink.height*scale/2,width:ink.width*scale,height:ink.height*scale});
+    }
     if(options.demonstration) {
+      if(sheet){page.drawText('DEMOSTRACIÓN · SIN VALIDEZ OPERATIVA',{x:112,y:5,font,size:6,color:rgb(.55,.18,.12)});continue;}
       page.drawRectangle({x:30,y:34,width:359,height:16,color:rgb(1,1,1),opacity:.94});
       page.drawText('DEMOSTRACIÓN · SIN VALIDEZ OPERATIVA',{x:77,y:39,font,size:8,color:rgb(.55,.18,.12)});
     }

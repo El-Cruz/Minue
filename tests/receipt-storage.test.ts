@@ -48,3 +48,10 @@ it('retrieves v3 from its immutable path without falling back to or replacing v2
  expect(new TextDecoder().decode(bytes)).toBe('vector-pdf');
  expect(download).toHaveBeenCalledWith('receipts/'+receipt.id+'/v3.pdf');expect(upload).not.toHaveBeenCalled();
 });
+
+it('retrieves v4 bytes without modifying v2 or v3 documents',async()=>{
+ download.mockResolvedValueOnce({error:null,data:new Blob(['new-sheet-pdf'])});
+ const bytes=await ensureReceiptPDF(client,{...receipt,template_version:4});
+ expect(new TextDecoder().decode(bytes)).toBe('new-sheet-pdf');
+ expect(download).toHaveBeenCalledWith('receipts/'+receipt.id+'/v4.pdf');expect(upload).not.toHaveBeenCalled();
+});

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Expand, Minimize, Minus, Plus, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Expand, Minimize, Minus, Plus } from 'lucide-react';
 import type { PDFDocumentProxy, PDFDocumentLoadingTask } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useApp } from '../lib/context';
 import { receiptFilename } from '../lib/receipt-format';
 import { legacyReceiptUrl } from '../lib/legacy';
-import { receiptState, apiPost, saveBlob } from '../lib/api';
+import { receiptState, saveBlob } from '../lib/api';
 import type { Receipt, ReceiptState } from '../lib/types';
 import Modal from './Modal';
 import ReceiptLoading from './ReceiptLoading';
@@ -32,7 +32,7 @@ export default function ReceiptPreview({receipt,onClose}:{receipt:Receipt;onClos
   useEffect(()=>{
     if(demo)return;let live=true;
     const refresh=()=>receiptState(receipt.delivery_id).then(s=>{if(live)setState(s);}).catch(()=>{});
-    void refresh();const timer=setInterval(refresh,8000);return()=>{live=false;clearInterval(timer);};
+    void refresh();return()=>{live=false;};
   },[receipt.id,demo]);
   useEffect(()=>{if(!frame.current)return;const observer=new ResizeObserver(entries=>{setWidth(entries[0].contentRect.width);if(photo)setFrameHeight(entries[0].contentRect.height);});observer.observe(frame.current);return()=>observer.disconnect();},[pdf,photo]);
   useEffect(()=>{
@@ -49,9 +49,8 @@ export default function ReceiptPreview({receipt,onClose}:{receipt:Receipt;onClos
   useEffect(()=>{const changed=()=>{if(!document.fullscreenElement)setPhoto(false);};document.addEventListener('fullscreenchange',changed);return()=>document.removeEventListener('fullscreenchange',changed);},[]);
   async function leavePhoto(){setPhoto(false);setControls(false);if(document.fullscreenElement)await document.exitFullscreen().catch(()=>{});}
   async function fullPhoto(){setZoom(1);setControls(false);setPhoto(true);await viewer.current?.requestFullscreen?.().catch(()=>{});}
-  async function retryDrive(){try{await apiPost('/api/receipt-retry?delivery_id='+encodeURIComponent(receipt.delivery_id));setState(await receiptState(receipt.delivery_id));}catch{setError('El comprobante sigue guardado en Minue. No pudimos iniciar el reintento de Drive.');}}
+
   const visible=!photo||controls||Boolean(error),number=state?.receipt.receipt_number||receipt.receipt_number||receipt.folio;
-  const status=state?.drive_status||receipt.drive_status||'pending';
   const legacyUrl=legacyReceiptUrl(state?.receipt||receipt);
   return <Modal title="Comprobante de entrega" subtitle={number} wide onClose={()=>{if(photo)void leavePhoto();else onClose();}} className={photo?'receipt-photo-dialog '+(controls||error?'show-controls':''):'receipt-preview-dialog'}>
     <div ref={viewer} className={'receipt-viewer '+(photo?'photo':'')}>
@@ -71,10 +70,9 @@ export default function ReceiptPreview({receipt,onClose}:{receipt:Receipt;onClos
       </div>
       {visible && <div className="receipt-footer">
         {error && <p className="form-error" role="alert">{error}<button className="text-button" onClick={()=>setRetry(retry+1)}>Volver a intentar</button></p>}
-        <p className={'receipt-drive-status '+status}>{receipt.legacy_id?'Comprobante histórico · se conserva el original':demo?'Demostración: no se guarda en Drive.':status==='saved'?'Guardado en Drive':status==='reconnect'?'Requiere reconexión de Drive':'Pendiente de Drive'}</p>
+        <p className="receipt-confirmed-status">{receipt.legacy_id?'Comprobante histórico · se conserva el original':demo?'Demostración · entrega de ejemplo confirmada.':ready?'Entrega confirmada. Comprobante disponible en Minue.':'Entrega confirmada.'}</p>
         <div className="receipt-actions"><button className="button primary" disabled={!ready} onClick={()=>{if(loadedBlob.current)saveBlob(loadedBlob.current,receiptFilename(state?.receipt||receipt,original));}}><Download size={16}/>Descargar comprobante PDF</button>
         {legacyUrl && <a className="button subtle" href={legacyUrl} target="_blank" rel="noopener noreferrer">Abrir PDF original en Google Drive</a>}
-        {!demo && !receipt.legacy_id && status!=='saved' && <button className="button subtle" onClick={()=>void retryDrive()}><RefreshCw size={16}/>Reintentar Drive</button>}
         {!receipt.legacy_id && state?.originalAvailable && <button className="text-button" onClick={()=>setOriginal(!original)}>{original?'Ver formato nuevo':'Ver PDF original'}</button>}
         <button className="text-button" onClick={onClose}>Volver a mis entregas</button></div>
       </div>}

@@ -15,3 +15,16 @@ it('renders v3 with vector artwork and embeds only the captured signature as an 
     expect(objects.keys()).toHaveLength(1); // No photo, screenshot, or raster background.
   }
 });
+
+it('renders the v4 sheet as vectors with seven rows, preserved data and the new proportions',async()=>{
+  const assets=await serverReceiptAssets(4);expect(assets.template).toBeUndefined();
+  for(const count of [7,8,16]){
+    const receipt={...example,template_version:4,snapshot:{...example.snapshot,items:Array.from({length:count},(_,i)=>({product_id:crypto.randomUUID(),name:'Dieta de recuperación nutricional de pollo para perros y gatos '+(i+1),quantity:1.125,unit:'kg'}))}};
+    const bytes=await buildReceiptPDF(receipt,new Uint8Array(await readFile('public/icon-192.png')),{assets});
+    const document=await PDFDocument.load(bytes);expect(document.getPageCount()).toBe(Math.ceil(count/7));
+    for(const page of document.getPages()){
+      expect(page.getSize()).toEqual({width:426.5,height:640});
+      expect(page.node.Resources()!.lookup(PDFName.of('XObject'),PDFDict).keys()).toHaveLength(1);
+    }
+  }
+});
