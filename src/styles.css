@@ -25,23 +25,27 @@
 
 .receipt-photo-dialog[open]{display:flex;flex-direction:column}.receipt-photo-dialog[open]>.receipt-viewer{flex:1;min-height:0}
 
-/* One vector composition serves the loader and the emitted document. */
+/* The loading sheet shares vector coordinates and fonts with the PDF. */
 @font-face{font-family:ReceiptPoppins;src:url('/receipt-assets/Poppins-Regular.ttf') format('truetype');font-display:swap}
-.clipboard-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;width:100%;padding:24px 12px;color:#536443;text-align:center}
-.clipboard-illustration{width:190px;max-width:70vw;filter:drop-shadow(0 12px 16px #4e573219);animation:clipboard-arrive .45s cubic-bezier(.2,.8,.2,1) both}.clipboard-art{display:block;width:100%;height:auto;overflow:visible;font-family:ReceiptPoppins,sans-serif}
-.clipboard-paper,.clipboard-print{animation:clipboard-paper-in .55s cubic-bezier(.2,.8,.2,1) both;transform-origin:50% 12%}
-.clipboard-clip{animation:clipboard-clip-in .6s ease-out both;transform-origin:50% 3%}
-.clipboard-writing rect{transform-box:fill-box;transform-origin:left;animation:clipboard-write 1.8s ease-in-out infinite}
-.clipboard-loading p{font-size:14px;font-weight:500;margin:4px 0 0;letter-spacing:.01em}
-.clipboard-dots{display:flex;gap:5px;height:8px}.clipboard-dots i{height:4px;width:4px;background:#9aa780;border-radius:50%;animation:clipboard-dot 1.3s ease-in-out infinite}.clipboard-dots i:nth-child(2){animation-delay:.15s}.clipboard-dots i:nth-child(3){animation-delay:.3s}
-@keyframes clipboard-arrive{from{opacity:0;transform:translateY(12px) rotate(-3deg)}to{opacity:1;transform:none}}
-@keyframes clipboard-paper-in{from{opacity:.3;transform:translateY(-15px)}to{opacity:1;transform:none}}
-@keyframes clipboard-clip-in{0%,30%{transform:translateY(-4px)}100%{transform:none}}
-@keyframes clipboard-write{0%,10%{transform:scaleX(.15);opacity:.25}45%,70%{transform:scaleX(1);opacity:.5}100%{transform:scaleX(1);opacity:.2}}
-@keyframes clipboard-dot{0%,80%,100%{opacity:.3}40%{opacity:1}}
-.confirmation-stage{position:relative}.confirmation-loading{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;background:#fffefa}.confirmation-loading .clipboard-illustration{width:220px}
-.receipt-frame{position:relative;background:#eee9df}.receipt-frame.is-preparing{min-height:360px}.receipt-frame>.clipboard-loading{position:absolute;inset:0;z-index:1;background:#f7f7ef;margin:0}
+@font-face{font-family:ReceiptLogo;src:url('/receipt-assets/Poppins-Light.ttf') format('truetype');font-display:swap}
+@font-face{font-family:ReceiptLabel;src:url('/receipt-assets/Oswald-Regular.woff') format('woff');font-display:swap}
+@font-face{font-family:ReceiptTitle;src:url('/receipt-assets/Oswald-Bold.woff') format('woff');font-display:swap}
+@font-face{font-family:ReceiptScript;src:url('/receipt-assets/Caveat-Regular.woff') format('woff');font-display:swap}
+.sheet-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;width:100%;padding:24px 12px;color:#3f5033;text-align:center}
+.sheet-illustration{width:190px;max-width:70vw;filter:drop-shadow(0 9px 14px #4e573214);animation:sheet-arrive .4s ease-out both}
+.sheet-art{display:block;width:100%;height:auto;overflow:hidden;font-family:ReceiptPoppins,sans-serif}
+.sheet-print{animation:sheet-print-in .45s ease-out both}
+.sheet-writing rect{transform-box:fill-box;transform-origin:left;animation:sheet-write 1.8s ease-in-out infinite}
+.sheet-loading p{font-size:14px;font-weight:500;margin:4px 0 0;letter-spacing:.01em}
+.sheet-dots{display:flex;gap:5px;height:8px}.sheet-dots i{height:4px;width:4px;background:#9aa780;border-radius:50%;animation:sheet-dot 1.3s ease-in-out infinite}.sheet-dots i:nth-child(2){animation-delay:.15s}.sheet-dots i:nth-child(3){animation-delay:.3s}
+@keyframes sheet-arrive{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes sheet-print-in{from{opacity:.35}to{opacity:1}}
+@keyframes sheet-write{0%,10%{transform:scaleX(.15);opacity:.25}45%,70%{transform:scaleX(1);opacity:.5}100%{transform:scaleX(1);opacity:.2}}
+@keyframes sheet-dot{0%,80%,100%{opacity:.3}40%{opacity:1}}
+.confirmation-stage{position:relative}.confirmation-loading{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;background:#fffefa}.confirmation-loading .sheet-illustration{width:220px}
+.receipt-frame{position:relative;background:#f5f1e5}.receipt-frame.is-preparing{min-height:370px}.receipt-frame>.sheet-loading{position:absolute;inset:0;z-index:1;background:#f7f5ec;margin:0}
 .receipt-page-preparing{opacity:0;pointer-events:none}.receipt-page-ready{opacity:1;transition:opacity .18s ease-out}
+.receipt-confirmed-status{color:#536443;font-size:13px;margin-bottom:12px}
 .receipt-viewer.photo .receipt-frame{padding:8px}.receipt-viewer.photo .receipt-page-ready{transition:none}.receipt-viewer.photo .receipt-frame.is-preparing{min-height:0}
-@media(prefers-reduced-motion:reduce){.clipboard-illustration,.clipboard-paper,.clipboard-print,.clipboard-clip,.clipboard-writing rect,.clipboard-dots i{animation:none!important;transform:none!important}.clipboard-writing rect{opacity:.35}.receipt-page-ready{transition:none}}
-@font-face{font-family:ReceiptPoppins;src:url('/receipt-assets/Poppins-Bold.ttf') format('truetype');font-style:normal;font-weight:700;font-display:swap}
+.drive-archive{border-top:1px solid #e1e6d7;margin-top:20px;padding-top:16px}.drive-archive>p{font-size:13px;margin-bottom:10px}.drive-archive-row{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:12px 0;border-bottom:1px solid #e9edde}.drive-archive-row strong,.drive-archive-row small{display:block}.drive-archive-row strong{font-size:12px}.drive-archive-row small{font-size:11px;color:#82936f;margin-top:4px}.drive-archive-row .button{font-size:11px;padding:8px}
+@media(prefers-reduced-motion:reduce){.sheet-illustration,.sheet-print,.sheet-writing rect,.sheet-dots i{animation:none!important;transform:none!important}.sheet-writing rect{opacity:.35}.receipt-page-ready{transition:none}}

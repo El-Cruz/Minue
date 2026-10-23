@@ -1,0 +1,70 @@
+import type {SceneNode,SceneLayer} from './receipt-scene.js';
+/** Coordinates traced to the 853 × 1280 reference; all values are half-size. */
+export const SHEET_SIZE={width:426.5,height:640};
+export const SHEET_LAYOUT={rows:7,tableTop:277,rowHeight:162.5/7,productCenter:150,productWidth:214,quantityCenter:334.5,quantityWidth:102};
+export function receiptSheetScene():SceneNode[]{
+  const nodes:SceneNode[]=[],green='#3f5033',sage='#7a8564',line='#a2a68e',paper='#f5f1e5';
+  const path=(d:string,fill?:string,stroke?:string,width=.6,layer:SceneLayer='print')=>nodes.push({kind:'path',d,fill,stroke,strokeWidth:width,layer});
+  const rounded=(x:number,y:number,w:number,h:number,r:number,stroke:string,fill=paper)=>path(`M ${x+r} ${y} H ${x+w-r} Q ${x+w} ${y} ${x+w} ${y+r} V ${y+h-r} Q ${x+w} ${y+h} ${x+w-r} ${y+h} H ${x+r} Q ${x} ${y+h} ${x} ${y+h-r} V ${y+r} Q ${x} ${y} ${x+r} ${y} Z`,fill,stroke);
+  const text=(value:string,x:number,y:number,size:number,font:'body'|'logo'|'label'|'title'|'script'='label',anchor:'start'|'middle'='start',layer:SceneLayer='print',spacing=0,rotate=0)=>nodes.push({kind:'text',text:value,x,y,size,font,fill:green,anchor,layer,spacing,rotate});
+  const ellipse=(cx:number,cy:number,rx:number,ry:number,fill=green,layer:SceneLayer='print')=>nodes.push({kind:'ellipse',cx,cy,rx,ry,fill,layer});
+  const segment=(x:number,y:number,x2:number,y2:number,color=line,w=.5,layer:SceneLayer='print')=>path(`M ${x} ${y} L ${x2} ${y2}`,undefined,color,w,layer);
+  const heart=(x:number,y:number,s:number,fill=green,layer:SceneLayer='print')=>path(`M ${x} ${y+s} C ${x-s*2} ${y-s*.2} ${x-s} ${y-s*1.6} ${x} ${y-s*.7} C ${x+s} ${y-s*1.6} ${x+s*2} ${y-s*.2} ${x} ${y+s} Z`,fill,undefined,.5,layer);
+  const leaf=(d:string,color='#a9b393')=>path(d,color,undefined,.5,'seal');
+  path('M 0 0 H 426.5 V 640 H 0 Z',paper,undefined,.5,'paper');
+  text('MINUË',213.25,58,37.5,'logo','middle');
+  text('PET NUTRITION & SPA',213.25,72,8.1,'logo','middle','print',2.1);
+  text('Nutrición real,',359,44,13.3,'script','middle','print',0,7);
+  text('bienestar siempre.',360,59,13.3,'script','middle','print',0,7);
+  path('M 335 75 Q 361 66 389 64',undefined,green,.8);
+  segment(38,48,45,53,'#9ba286',1);segment(48,39,53,48,'#9ba286',1);segment(33,63,42,65,'#9ba286',1);
+  segment(386,86,390,79,'#9ba286',1);segment(392,92,398,87,'#9ba286',1);segment(394,101,403,99,'#9ba286',1);
+  text('COMPROBANTE DE ENTREGA',213.25,117,22,'title','middle');
+  segment(75,132,198,132);segment(228,132,351.5,132);heart(213.25,132,5);
+  rounded(29,149.5,368.5,38,8,line);
+  rounded(42,159,18,18,1.5,green);
+  segment(42,164,60,164,green,1.2);segment(46,156,46,162,green,1.7);segment(56,156,56,162,green,1.7);
+  for(let i=0;i<6;i++)ellipse(46+i%3*5,168+Math.floor(i/3)*5,1.1,1.1);
+  text('FECHA DE ENTREGA:',74,171,9.4);segment(171,176.5,384,176.5);
+  rounded(29,198.5,368.5,44,8,line);
+  path('M 51 203.5 C 34 203.5 40 218 51 232 C 62 218 68 203.5 51 203.5 Z',green);ellipse(51,213.5,4.6,4.6,paper);
+  text('PUNTO DE ENTREGA:',74,221,9.4);segment(171,229.5,384,229.5);
+  rounded(29,253.5,368.5,186,7,line);
+  path('M 36 253.5 H 390.5 Q 397.5 253.5 397.5 260.5 V 277 H 29 V 260.5 Q 29 253.5 36 253.5 Z',sage);
+  path('M 113 271 Q 118 265 123 260 M 117 267 Q 111 267 113 262 Q 116 262 117 267 M 120 264 Q 124 264 124 259 Q 120 260 120 264',undefined,'#e0e2d0',.8);
+  text('PRODUCTO',160,269,10,'label','middle');nodes[nodes.length-1].fill='#fffef5';
+  text('CANTIDAD (KG / UNID.)',337.5,269,9,'label','middle');nodes[nodes.length-1].fill='#fffef5';
+  segment(270.5,253.5,270.5,439.5,'#b3b79f',.5);
+  for(let i=0;i<7;i++)segment(29,277+i*SHEET_LAYOUT.rowHeight,397.5,277+i*SHEET_LAYOUT.rowHeight,'#a9ad96',.45);
+  rounded(30,450,367.5,34,6,line);
+  ellipse(47.5,467,9.5,9.5);ellipse(47.5,463.5,3.3,3.3,paper);path('M 41.5 473 Q 42 467 47.5 467 Q 53 467 53.5 473 Z',paper);
+  text('RECIBIDO POR:',67,470,9);segment(135.5,477,388,477);
+  rounded(30,491.5,367.5,35.5,6,line);
+  path('M 39 519 L 42 511 L 52 500 Q 54 498 56 501 L 46 513 Z',undefined,green,1.4);segment(42,511,46,513,green,1);segment(40,517,44,516,green,1);
+  text('FIRMA DE RECEPCIÓN:',65.5,513,9);segment(161.5,519.5,388,519.5);
+  // Pale botanical shapes sit behind the line drawings and the thank-you message.
+  path('M 263 640 C 300 613 335 610 359 580 Q 392 540 426.5 537 V 640 Z','#e3e5d4',undefined,.5,'seal');
+  segment(0,617,21,560,'#a3ad8f',.8,'seal');
+  leaf('M 4 585 Q 1 554 24 532 Q 28 559 4 585 Z');
+  leaf('M 4 606 Q 14 575 54 564 Q 42 590 4 606 Z');
+  leaf('M 0 615 Q 26 596 52 617 Q 26 626 0 615 Z');
+  segment(403,635,408,577,'#9da889',.65,'seal');
+  leaf('M 407 594 Q 398 580 404 569 Q 414 581 407 594 Z','#9ca886');
+  leaf('M 406 611 Q 409 591 419 586 Q 420 602 406 611 Z','#a7b18f');
+  leaf('M 405 621 Q 393 608 395 597 Q 407 601 405 621 Z','#9ca886');
+  leaf('M 403 634 Q 409 615 420 615 Q 416 630 403 634 Z','#a7b18f');
+  text('ENTREGA CONFIRMADA',213.25,544,8.7,'label','middle','seal');
+  path('M 213.25 550 A 14.5 14.5 0 1 1 213.24 550',undefined,green,2,'seal');
+  path('M 206 565 L 211.5 571 L 222 557.5',undefined,green,2.6,'seal');
+  for(const side of [-1,1]){segment(213.25+side*50,564,213.25+side*60,564,'#a4ac8e',.9,'seal');segment(213.25+side*51,556,213.25+side*56,552,'#a4ac8e',.9,'seal');segment(213.25+side*51,573,213.25+side*57,577,'#a4ac8e',.9,'seal');}
+  heart(132.5,604,4.8,'#a6ae8e','seal');text('Gracias por confiar en Minué',214,608,14,'script','middle','seal');
+  path('M 288 606 Q 285 603 287 601 Q 289 598 291 601 Q 294 603 292 606 Q 290 604 288 606 Z',green,undefined,.5,'seal');
+  for(const [x,y] of [[285.5,600],[288,597.5],[291.3,597.5],[294,600]])ellipse(x,y,1.1,1.7,green,'seal');
+  // Dog in profile, then the smaller cat nestled against its chest.
+  path('M 329 637 C 327 627 328 612 330 605 C 334 595 331 586 329 581 Q 319 581 317 576 L 315.5 572 Q 314 570 318 569 L 327 566 Q 331 563 333 558 C 338 552 347 554 352 557 Q 360 559 363 566 Q 367 568 367 572 Q 365 582 358 583 Q 353 580 351 573 L 350 562 M 329 581 Q 338 590 344 592 Q 348 600 350 612 M 330 605 Q 341 610 345 620 L 345 637 M 350 562 Q 351 558 355 561',undefined,green,.75,'seal');
+  ellipse(336,568,.8,.95,green,'seal');path('M 315.5 571 Q 320 570 319 573 Q 316 574 315.5 571 Z',green,undefined,.5,'seal');
+  path('M 348 638 Q 343 630 347 619 C 348 610 357 607 363 600 L 364 587 Q 369 589 372 595 L 377 584 Q 382 591 381 598 Q 385 601 386 606 L 391 609 Q 393 612 388 613 Q 385 616 382 617 C 384 624 381 633 378 638 M 363 600 Q 354 609 353 617 M 348 623 Q 357 618 366 627 Q 370 632 368 638 M 382 617 Q 378 616 375 614',undefined,green,.75,'seal');
+  ellipse(382,606,.65,.8,green,'seal');
+  return nodes;
+}
+export const RECEIPT_SHEET_SCENE=receiptSheetScene();

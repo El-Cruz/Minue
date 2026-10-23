@@ -6,7 +6,7 @@ type Style = { fill?: string; stroke?: string; strokeWidth?: number; opacity?: n
 export type SceneNode = Style & (
   { kind: 'path'; d: string } |
   { kind: 'ellipse'; cx: number; cy: number; rx: number; ry: number } |
-  { kind: 'text'; x: number; y: number; text: string; size: number; anchor?: 'start' | 'middle'; weight?: 700 }
+  { kind: 'text'; x: number; y: number; text: string; size: number; anchor?: 'start' | 'middle'; weight?: 700; font?: 'body'|'logo'|'label'|'title'|'script'; spacing?: number; rotate?: number }
 );
 function rounded(x:number,y:number,w:number,h:number,r:number) {
   return `M ${x+r} ${y} H ${x+w-r} Q ${x+w} ${y} ${x+w} ${y+r} V ${y+h-r} Q ${x+w} ${y+h} ${x+w-r} ${y+h} H ${x+r} Q ${x} ${y+h} ${x} ${y+h-r} V ${y+r} Q ${x} ${y} ${x+r} ${y} Z`;

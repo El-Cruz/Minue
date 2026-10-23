@@ -37,7 +37,7 @@ export function demoCommand(data: Data, actorId: string, action: string, payload
     const serial = destination.receipt_next_number || 1;
     const receiptNumber = (destination.receipt_code || 'DEMO') + '-' + String(serial).padStart(3,'0');
     destination.receipt_next_number = serial + 1;
-    const receipt: Receipt = { id: id(), delivery_id: delivery.id, folio: `MIN-${today().replaceAll('-', '')}-${String(next.receipts.length + 1).padStart(5, '0')}`, snapshot, created_at: now, pdf_path: null, receipt_number: receiptNumber, template_version: 3, drive_status: 'pending', signature_data: String(payload.signature) };
+    const receipt: Receipt = { id: id(), delivery_id: delivery.id, folio: `MIN-${today().replaceAll('-', '')}-${String(next.receipts.length + 1).padStart(5, '0')}`, snapshot, created_at: now, pdf_path: null, receipt_number: receiptNumber, template_version: 4, drive_status: 'pending', signature_data: String(payload.signature) };
     next.receipts.push(receipt); delivery.status = 'delivered';
     event(delivery.id, 'delivered', `Recibió ${recipient.name}`);
   } else if (action === 'fail_delivery') {
