@@ -42,7 +42,7 @@ export async function googleToken(params:Record<string,string>) {
   if(!response.ok)throw new DriveError(data.error==='invalid_grant'?'reconnect':'temporary','Google no autorizó la conexión con Drive.');
   return data as {access_token:string;refresh_token?:string};
 }
-async function google(token:string,path:string,init:RequestInit={},upload=false) {
+export async function google(token:string,path:string,init:RequestInit={},upload=false) {
   const response=await fetch((upload?'https://www.googleapis.com/upload/drive/v3/':'https://www.googleapis.com/drive/v3/')+path,{...init,headers:{Authorization:'Bearer '+token,...init.headers},signal:AbortSignal.timeout(20000)});
   if([401,403].includes(response.status)) {
     const data=await response.json().catch(()=>null);
@@ -73,7 +73,7 @@ async function ensureFolder(client:SupabaseClient,token:string,key:string,name:s
 async function uploadReceipt(client:SupabaseClient,token:string,job:DriveJob) {
   const {data,error}=await client.from('receipts').select('*').eq('id',job.receipt_id).single();
   if(error || !data)throw new DriveError('temporary','No se encontró el comprobante para archivar.');
-  const receipt=data as Receipt,pdf=await ensureReceiptPDF(client,receipt);
+  const receipt=data as Receipt,pdf=await ensureReceiptPDF(client,receipt,false,true);
   const root=await ensureFolder(client,token,'root','Minue - Comprobantes');
   const month=receiptMonth(receipt.snapshot.confirmed_at);
   const year=await ensureFolder(client,token,'year:'+month.year,month.year,root);

@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Receipt } from '../src/lib/types';
-import { ensureReceiptPDF } from '../server/receipt';
+import { ensureReceiptPDF as actualEnsureReceiptPDF } from '../server/receipt';
 const download = vi.fn(), upload = vi.fn(), update = vi.fn(), eq = vi.fn();
-const client = { storage: { from: () => ({ download, upload }) }, from: () => ({ update }) } as unknown as SupabaseClient;
+let storedReceipt:Receipt;
+async function ensureReceiptPDF(client:SupabaseClient,receipt:Receipt,original=false){storedReceipt=receipt;return actualEnsureReceiptPDF(client,receipt,original);}
+const rpc=vi.fn();
+const client = {rpc, storage: { from: () => ({ download, upload }) }, from: () => ({ update,select:()=>({eq:()=>({single:async()=>({data:storedReceipt,error:null})})}) }) } as unknown as SupabaseClient;
 const receipt = { id: crypto.randomUUID(), pdf_path: null, receipt_number:'PRA-065', snapshot: { signature_path: 'private/signature.png' } } as Receipt;
-beforeEach(() => { vi.clearAllMocks(); update.mockReturnValue({ eq }); eq.mockResolvedValue({ error: null }); });
+beforeEach(() => { vi.clearAllMocks(); rpc.mockResolvedValue({data:crypto.randomUUID(),error:null}); update.mockReturnValue({ eq }); eq.mockResolvedValue({ error: null }); });
 describe('private receipt storage recovery', () => {
   it('reuses a stored v2 PDF without overwriting an original', async () => {
     download.mockResolvedValueOnce({ error: null, data: new Blob(['existing-pdf']) });

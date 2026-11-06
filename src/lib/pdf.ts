@@ -64,20 +64,21 @@ export async function buildReceiptPDF(receipt: Receipt, signature: Uint8Array, o
     const bytes=assets[key as keyof ReceiptAssets];if(!bytes)throw new Error('Falta una tipografía del comprobante.');return doc.embedFont(bytes,{subset:true});
   })):[];
   const snapshot = receipt.snapshot;
-  if (snapshot.items.some(item => !['kg','1 kg','1kg'].includes(item.unit.trim().toLowerCase()))) throw new Error('Revisa las cantidades en kg antes de generar este formato.');
+  if (snapshot.items.some(item => !['kg','1 kg','1kg','unidad'].includes(item.unit.trim().toLowerCase()))) throw new Error('Revisa las cantidades en kg antes de generar este formato.');
   const rows=sheet?SHEET_LAYOUT.rows:6;
   const chunks = Array.from({length:Math.max(1,Math.ceil(snapshot.items.length/rows))},(_,n)=>snapshot.items.slice(n*rows,n*rows+rows));
   for (const items of chunks) {
     const page = doc.addPage(sheet?[SHEET_SIZE.width,SHEET_SIZE.height]:[419,595]);
     if(sheet){
       drawReceiptScene(page,RECEIPT_SHEET_SCENE,SHEET_SIZE.height,{body:font,logo:faces[0],label:faces[1],title:faces[2],script:faces[3]});
+      fitText(page,font,'ID DE ENTREGA: '+(receipt.receipt_number||receipt.folio),213.25,146,350,8,1);
       fitText(page,font,deliveryDate(snapshot.confirmed_at),277.5,173.5,210,11.2,1);
       fitText(page,font,snapshot.destination.name,277.5,221.8,210,10.5,3);
       items.forEach((item,n)=>{
         const baseline=SHEET_LAYOUT.tableTop+15.5+n*SHEET_LAYOUT.rowHeight;
         fitText(page,font,item.name,SHEET_LAYOUT.productCenter,baseline,SHEET_LAYOUT.productWidth,9.7,2);
         const quantity=new Intl.NumberFormat('es-EC',{maximumFractionDigits:3}).format(item.quantity);
-        fitText(page,font,quantity+' kg',SHEET_LAYOUT.quantityCenter,baseline,SHEET_LAYOUT.quantityWidth,10,1);
+        fitText(page,font,quantity+' '+(item.unit==='unidad'?'unid.':'kg'),SHEET_LAYOUT.quantityCenter,baseline,SHEET_LAYOUT.quantityWidth,10,1);
       });
       fitText(page,font,snapshot.recipient,263,472.7,244,10.2,2);
       const scale=Math.min(210/ink.width,25/ink.height);
@@ -90,7 +91,7 @@ export async function buildReceiptPDF(receipt: Receipt, signature: Uint8Array, o
     items.forEach((item,n)=>{
       fitText(page,font,item.name,vector?161:165.50,(vector?287.5+n*25.3:292.83+n*24),vector?182:205,10.5,2,!vector);
       const quantity = new Intl.NumberFormat('es-EC',{maximumFractionDigits:3}).format(item.quantity);
-      fitText(page,font,quantity + ' kg',vector?310:315.50,(vector?287.5+n*25.3:292.83+n*24),vector?80:87,10.5,1);
+      fitText(page,font,quantity+' '+(item.unit==='unidad'?'unid.':'kg'),vector?310:315.50,(vector?287.5+n*25.3:292.83+n*24),vector?80:87,10.5,1);
     });
     fitText(page,font,snapshot.recipient,vector?253:247.53,448.118,vector?190:202,10.8,2);
     const scale = Math.min(130/ink.width,39/ink.height);

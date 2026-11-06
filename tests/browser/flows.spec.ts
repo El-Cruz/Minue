@@ -52,15 +52,13 @@ test('recipient, required signature, observation and valid PDF on Android-sized 
   await page.getByText('Agregar una observación').click();
   await page.getByLabel('Observación de la entrega').fill('Se entregaron todos los alimentos refrigerados.');
   await page.getByRole('button', { name: 'Confirmar y generar comprobante' }).click();
-  await expect(page.getByRole('heading', { name: 'Comprobante de entrega', exact: true })).toBeVisible();
-  const photo = page.getByRole('button', { name: 'Pantalla completa para foto' });
-  await expect(photo).toBeEnabled({timeout:15000});
-  await photo.click();
-  await expect(page.getByRole('button', { name: 'Descargar comprobante PDF' })).toHaveCount(0);
-  await expect.poll(async()=>page.locator('.receipt-frame canvas').evaluate(c=>{const r=c.getBoundingClientRect();return r.width>100&&r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth;})).toBe(true);
-  await page.screenshot({path:'/tmp/minue-receipt-photo-mobile.png'});
-  await page.getByRole('button', { name: 'Mostrar u ocultar controles del comprobante' }).click();
-  await page.getByRole('button', { name: 'Salir de pantalla completa' }).click();
+  await expect(page.getByRole('heading', { name: /COMPROBANTE DE ENTREGA/i, exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.receipt-document')).toContainText('HUE-001');
+  await expect(page.locator('.receipt-document')).toContainText('María Pérez');
+  expect(await page.locator('.receipt-document').evaluate(el=>el.getBoundingClientRect().right<=innerWidth)).toBe(true);
+  expect(await page.locator('.receipt-screen').evaluate(el=>{const r=el.getBoundingClientRect();return r.top===0&&r.height===innerHeight;})).toBe(true);
+  await page.screenshot({path:'test-results/receipt-mobile.png'});
   const received = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar comprobante PDF' }).click();
   const download = await received;
@@ -68,7 +66,7 @@ test('recipient, required signature, observation and valid PDF on Android-sized 
   const pdf = await PDFDocument.load(await readFile((await download.path())!));
   expect(pdf.getPageCount()).toBe(1);
   await download.saveAs('/tmp/minue-comprobante-demostracion.pdf');
-  await page.getByRole('button', { name: 'Volver a mis entregas' }).click();
+  await page.getByRole('button', { name: 'Regresar a mis entregas' }).click();
   await page.getByRole('navigation', { name: 'Navegación móvil' }).getByRole('button', { name: 'Historial' }).click();
   await expect(page.getByText('Veterinaria Huellitas')).toBeVisible();
   await page.getByRole('button', { name: /01|Veterinaria Huellitas/ }).first().click();
@@ -118,13 +116,12 @@ test('admin creates destination, contact, product and assigned delivery', async 
   await page.getByRole('button', { name: 'Productos', exact: true }).click();
   await page.getByRole('button', { name: 'Nuevo producto', exact: true }).click();
   await page.getByLabel('Nombre del alimento').fill('Dieta especial de prueba');
-  await expect(page.getByText('Las cantidades se registran en kilogramos (kg).')).toBeVisible();
+  await expect(page.getByRole('combobox',{name:'Unidad',exact:true})).toHaveValue('kg');
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   await page.getByRole('button', { name: 'Gestionar entregas', exact: true }).click();
   await page.getByRole('button', { name: 'Nueva entrega', exact: true }).click();
   await page.getByRole('combobox', { name: 'Destino', exact: true }).selectOption({ label: 'Veterinaria Prueba' });
-  await page.getByLabel('Producto para agregar').selectOption({ label: 'Dieta especial de prueba' });
-  await page.getByRole('button', { name: 'Agregar', exact: true }).click();
+  await page.getByRole('button',{name:'Agregar '+'Dieta especial de prueba' ,exact:true}).click();
   await page.getByLabel('Cantidad de Dieta especial de prueba').fill('7');
   await page.getByRole('button', { name: 'Crear entrega', exact: true }).click();
   await expect(page.getByText('Veterinaria Prueba', { exact: true })).toBeVisible();
@@ -166,8 +163,7 @@ test('long names and decimal kg remain readable across multiple receipt pages',a
   await page.getByRole('button',{name:'Gestionar entregas',exact:true}).click();
   await page.getByRole('button',{name:'Editar entrega de Veterinaria Huellitas'}).last().click();
   for(const name of ['Dieta natural · Res',...names]){
-    await page.getByLabel('Producto para agregar').selectOption({label:name});
-    await page.getByRole('button',{name:'Agregar',exact:true}).click();
+    await page.getByRole('button',{name:'Agregar '+name,exact:true}).click();
     await page.getByLabel('Cantidad de '+name,{exact:true}).fill('1.125');
   }
   await page.getByRole('button',{name:'Guardar cambios'}).click();
@@ -178,13 +174,11 @@ test('long names and decimal kg remain readable across multiple receipt pages',a
   await page.getByRole('textbox',{name:'Nombre y apellido'}).fill('María Fernanda de los Ángeles Rodríguez Villalta');
   await sign(page);
   await page.getByRole('button',{name:'Confirmar y generar comprobante'}).click();
-  await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeEnabled({timeout:15000});
-  await expect(page.getByText('1 / 2',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Página siguiente',exact:true}).click();
-  await expect(page.getByText('2 / 2',{exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Página siguiente',exact:true})).toBeDisabled();
-  await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeEnabled();
-  await page.screenshot({path:'/tmp/minue-receipt-page-2.png'});
+  await expect(page.locator('.receipt-document tbody tr')).toHaveCount(8);
+  await expect(page.locator('.receipt-document')).toContainText(names[4]);
+  const received=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar comprobante PDF'}).click();
+  const file=await received;expect((await PDFDocument.load(await readFile((await file.path())!))).getPageCount()).toBe(2);
+
 });
 
 test('admin assigns two different couriers to one delivery',async({page})=>{
@@ -194,8 +188,7 @@ test('admin assigns two different couriers to one delivery',async({page})=>{
   await page.getByRole('combobox',{name:'Destino',exact:true}).selectOption({label:'Vet & Vida'});
   await page.getByRole('combobox',{name:'Segundo repartidor (opcional)',exact:true}).selectOption({label:'Sofía'});
   await expect(page.getByRole('combobox',{name:'Segundo repartidor (opcional)',exact:true}).getByRole('option',{name:'Alex',exact:true})).toHaveCount(0);
-  await page.getByLabel('Producto para agregar').selectOption({label:'Dieta natural · Res'});
-  await page.getByRole('button',{name:'Agregar',exact:true}).click();
+  await page.getByRole('button',{name:'Agregar '+'Dieta natural · Res',exact:true}).click();
   await page.getByRole('button',{name:'Crear entrega',exact:true}).click();
   await expect(page.getByText('Alex / Sofía',{exact:false})).toBeVisible();
 });
@@ -220,42 +213,41 @@ test('admin removes a team member, restores them and grants administration',asyn
   await expect(page.getByRole('checkbox',{name:/Administración/})).toBeDisabled();
 });
 
-test('vector loading is honest, motion-aware, retryable and leaves a still document for photos',async({page})=>{
-  await page.emulateMedia({reducedMotion:'reduce'});
-  let release:()=>void=()=>{};const gate=new Promise<void>(resolve=>{release=resolve;});
-  await page.route('**/receipt-assets/*',async route=>{await gate;await route.continue();});
-  await page.goto('/?demo=1');await openFirst(page);
-  await page.getByRole('button',{name:'Confirmar entrega',exact:true}).click();
-  await page.getByRole('combobox',{name:/Quién recibe/}).selectOption('new');
-  await page.getByRole('textbox',{name:'Nombre y apellido'}).fill('Recepción de ejemplo');await sign(page);
-  await page.getByRole('button',{name:'Confirmar y generar comprobante'}).click();
-  await expect(page.getByText('Preparando comprobante…')).toBeVisible();
-  await expect(page.locator('.sheet-art image')).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeDisabled();
-  expect(await page.locator('.sheet-illustration').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
-  await page.emulateMedia({reducedMotion:'no-preference'});
-  expect(await page.locator('.sheet-illustration').evaluate(el=>getComputedStyle(el).animationName)).toBe('sheet-arrive');
-  release();
-  await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeEnabled({timeout:15000});
-  await expect(page.locator('.sheet-loading')).toHaveCount(0);
-  await page.getByRole('button',{name:'Pantalla completa para foto'}).click();
-  await page.setViewportSize({width:844,height:390});
-  await expect.poll(()=>page.locator('.receipt-frame canvas').evaluate(el=>{const r=el.getBoundingClientRect();return r.height>100&&r.bottom<=innerHeight&&r.right<=innerWidth&&r.top>=0;})).toBe(true);
-  expect(await page.locator('.receipt-viewer').evaluate(el=>el.getAnimations({subtree:true}).filter(a=>a.playState==='running').length)).toBe(0);
+test('superadmin previews numbering and explicitly deletes a completed test delivery',async({page})=>{
+ await page.goto('/?demo=1');await openFirst(page);
+ await page.getByRole('button',{name:'Confirmar entrega',exact:true}).click();
+ await page.getByRole('combobox',{name:/Quién recibe/}).selectOption('new');
+ await page.getByLabel('Nombre y apellido').fill('Prueba de eliminación');await sign(page);
+ await page.getByRole('button',{name:'Confirmar y generar comprobante'}).click();
+ await page.getByRole('button',{name:'Regresar',exact:true}).click();
+ await page.getByRole('navigation',{name:'Navegación principal'}).getByRole('button',{name:'Historial',exact:true}).click();
+ await page.getByRole('button',{name:'Reorganizar comprobantes'}).click();
+ await page.getByRole('dialog').getByRole('combobox',{name:'Destino',exact:true}).selectOption({label:'Veterinaria Huellitas'});
+ await page.getByLabel('Primer número').fill('71');await page.getByRole('button',{name:'Ver cambios'}).click();
+ await expect(page.locator('.renumber-preview')).toContainText('HUE-001 → HUE-071');
+ await page.getByRole('button',{name:'Confirmar reorganización'}).click();
+ await page.getByRole('button',{name:'Eliminar entrega HUE-071',exact:true}).click();
+ await expect(page.getByRole('dialog')).toContainText('Veterinaria Huellitas · HUE-071');
+ await page.getByRole('button',{name:'Cancelar',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Eliminar entrega HUE-071',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Eliminar entrega HUE-071',exact:true}).click();
+ await page.getByRole('button',{name:'Eliminar definitivamente'}).click();
+ await expect(page.getByRole('button',{name:'Eliminar entrega HUE-071',exact:true})).toHaveCount(0);
 });
 
-test('failed vector preparation stops loading and retries the same confirmed receipt',async({page})=>{
-  let failFont=true;
-  await page.route('**/receipt-assets/Oswald-Bold.woff',route=>failFont?route.abort():route.continue());
-  await page.goto('/?demo=1');await openFirst(page);
-  await page.getByRole('button',{name:'Confirmar entrega',exact:true}).click();
-  await page.getByRole('combobox',{name:/Quién recibe/}).selectOption('new');
-  await page.getByRole('textbox',{name:'Nombre y apellido'}).fill('Persona de prueba');await sign(page);
-  await page.getByRole('button',{name:'Confirmar y generar comprobante'}).click();
-  await expect(page.getByRole('alert')).toContainText('La entrega está confirmada.');
-  await expect(page.locator('.sheet-loading')).toHaveCount(0);
-  failFont=false;
-  await page.getByRole('button',{name:'Volver a intentar',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeEnabled({timeout:15000});
-  await expect(page.locator('.modal-header')).toContainText('HUE-001');
+test('Bark Bites uses whole jars and the custom picker supports search and keyboard',async({page})=>{
+ await page.goto('/?demo=1');await page.getByRole('button',{name:'Productos',exact:true}).click();
+ await page.getByRole('button',{name:'Nuevo producto',exact:true}).click();await page.getByLabel('Nombre del alimento').fill('Bark Bites de pollo');
+ await expect(page.getByRole('combobox',{name:'Unidad',exact:true})).toHaveValue('unidad');
+ await page.getByRole('combobox',{name:'Proteína',exact:true}).selectOption('chicken');await page.getByRole('button',{name:'Guardar cambios'}).click();
+ await page.getByRole('button',{name:'Gestionar entregas',exact:true}).click();await page.getByRole('button',{name:'Nueva entrega',exact:true}).click();
+ await page.getByRole('combobox',{name:'Destino',exact:true}).selectOption({label:'Vet & Vida'});
+ await page.getByLabel('Buscar producto para agregar').fill('bark');
+ const add=page.getByRole('button',{name:'Agregar Bark Bites de pollo',exact:true});await add.focus();await page.keyboard.press('Enter');
+ await expect(page.getByLabel('Cantidad de Bark Bites de pollo')).toHaveAttribute('step','1');
+ await page.getByLabel('Cantidad de Bark Bites de pollo').fill('2');await page.getByRole('button',{name:'Crear entrega',exact:true}).click();
+ await page.getByRole('button',{name:'Productos',exact:true}).click();await page.getByRole('button',{name:'Editar Bark Bites de pollo'}).click();
+ await page.getByRole('button',{name:'Eliminar producto',exact:true}).click();await page.getByRole('button',{name:'Confirmar eliminación',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Bark Bites de pollo',exact:true})).toHaveCount(0);
 });
+

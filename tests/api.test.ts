@@ -26,6 +26,13 @@ beforeEach(async () => {
   state.pdf.mockResolvedValue(new Uint8Array());
   state.body = { action: 'confirm_delivery', payload: { delivery_id: deliveryId, recipient_id: crypto.randomUUID(), new_recipient: '', signature: `data:image/png;base64,${(await readFile('public/icon-192.png')).toString('base64')}`, observation: '', request_id: crypto.randomUUID() } };
 });
+it('rejects normal admins calling destructive superadmin commands directly',async()=>{
+ for(const action of ['delete_delivery','reorganize_preview','reorganize_receipts','maintenance_status']){
+  state.body={action,payload:action==='delete_delivery'?{delivery_id:deliveryId}:action==='maintenance_status'?{}:{destination_id:crypto.randomUUID(),start_number:1,token:'0'.repeat(32)}};
+  await handler(req,res);expect(state.json).toHaveBeenLastCalledWith(res,403,expect.anything());
+ }
+ expect(state.client.rpc).not.toHaveBeenCalled();expect(state.remove).not.toHaveBeenCalled();
+});
 describe('confirmation API failure boundaries', () => {
   it('allows the second assigned courier to confirm the shared delivery',async()=>{
     state.client.from.mockReturnValue({select:()=>({eq:()=>({single:async()=>({data:{assigned_to:crypto.randomUUID(),partner_id:actor,status:'pending'}})})})});

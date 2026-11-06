@@ -1,0 +1,8 @@
+import {useState} from 'react';
+import {Beef,Drumstick,Fish,Cookie,Package,Plus,Search} from 'lucide-react';
+import type {Product} from '../lib/types';
+import {productProtein,proteins} from '../lib/products';
+export default function ProductPicker({products,onAdd}:{products:Product[];onAdd:(p:Product)=>void}){
+ const [search,setSearch]=useState('');const sorted=products.filter(p=>(p.name+' '+proteins[productProtein(p)]).toLocaleLowerCase().includes(search.toLocaleLowerCase())).sort((a,b)=>a.name.localeCompare(b.name,'es'));
+ return <section className="product-picker" aria-label="Productos para agregar"><label className="search-field"><Search size={16}/><input aria-label="Buscar producto para agregar" placeholder="Buscar producto o proteína…" value={search} onChange={e=>setSearch(e.target.value)}/></label>{(['diet','cookies'] as const).map(category=>{const list=sorted.filter(p=>(p.category||(p.name.toLowerCase().includes('bark')?'cookies':'diet'))===category);return list.length>0&&<section key={category}><h4>{category==='cookies'?'Galletas · frascos':'Dietas · kilogramos'}</h4><div className="product-options">{list.map(p=>{const protein=productProtein(p),Icon=protein==='chicken'||protein==='turkey'?Drumstick:protein==='beef'||protein==='pork'?Beef:protein==='fish'?Fish:category==='cookies'?Cookie:Package;return <button type="button" key={p.id} onClick={()=>onAdd(p)} aria-label={'Agregar '+p.name}><span className={'protein-icon '+protein}><Icon size={22}/></span><span><strong>{p.name}</strong><small>{proteins[protein]} · {p.unit==='unidad'?'Frasco / unidad':p.unit}</small></span><Plus size={18}/></button>;})}</div></section>;})}{!sorted.length&&<p>No hay productos disponibles con esta búsqueda.</p>}</section>;
+}

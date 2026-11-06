@@ -1,0 +1,26 @@
+import {useEffect,useState} from 'react';
+import {Trash2,RefreshCw} from 'lucide-react';
+import {useApp} from '../lib/context';
+import {command} from '../lib/api';
+import {formatDate} from '../lib/dates';
+import type {Delivery} from '../lib/types';
+import Modal from './Modal';
+type Preview={mapping:{id:string;previous:string;next:string}[];token:string};
+type Status={reorganization_enabled:boolean;jobs:{id:string;kind:string;state:string;error?:string}[]};
+export function DeleteDelivery({delivery}:{delivery:Delivery}){
+ const {data,user,run,busy,online,notify}=useApp();const [open,setOpen]=useState(false),[error,setError]=useState('');
+ const receipt=data.receipts.find(r=>r.delivery_id===delivery.id),destination=data.destinations.find(d=>d.id===delivery.destination_id);
+ if(!user.is_superadmin||receipt?.legacy_id)return null;
+ return <><button className="icon-button danger" aria-label={'Eliminar entrega '+(receipt?.receipt_number||destination?.name)} onClick={()=>setOpen(true)} disabled={busy||!online}><Trash2 size={18}/></button>{open&&<Modal title="Eliminar entrega de prueba" onClose={()=>setOpen(false)} locked={busy}><p><strong>{destination?.name} · {receipt?.receipt_number||receipt?.folio}</strong></p><p>{formatDate(receipt?.snapshot.confirmed_at||delivery.scheduled_date)}</p><p>Se eliminarán definitivamente la entrega y su historial. Se limpiarán la firma y los PDF y se enviará la copia de Drive a la papelera.</p>{error&&<p role="alert">{error}</p>}<div className="modal-actions"><button className="button danger" disabled={busy||!online} onClick={async()=>{try{await run('delete_delivery',{delivery_id:delivery.id});setOpen(false);notify('Entrega eliminada. La limpieza de archivos se completará automáticamente.');}catch(e){setError((e as Error).message);}}}>Eliminar definitivamente</button><button className="button subtle" disabled={busy} onClick={()=>setOpen(false)}>Cancelar</button></div></Modal>}</>;
+}
+export default function HistoryMaintenance(){
+ const {data,demo,run,busy,online,notify}=useApp();const [open,setOpen]=useState(false),[destination,setDestination]=useState(''),[start,setStart]=useState(1),[preview,setPreview]=useState<Preview|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(false),[status,setStatus]=useState<Status>({jobs:[],reorganization_enabled:demo});
+ useEffect(()=>{if(demo)return;let live=true;const refresh=()=>command({action:'maintenance_status',payload:{}}).then(r=>{if(live)setStatus(r.data);}).catch(()=>{if(live)setError('No pudimos consultar las tareas. Revisa la conexión.');});void refresh();const timer=setInterval(refresh,10000);return()=>{live=false;clearInterval(timer);};},[demo,data]);
+ async function inspect(){setLoading(true);setError('');try{
+  if(demo){const receipts=data.receipts.filter(r=>!r.legacy_id&&data.deliveries.some(d=>d.id===r.delivery_id&&d.destination_id===destination)).sort((a,b)=>a.snapshot.confirmed_at.localeCompare(b.snapshot.confirmed_at)||a.id.localeCompare(b.id));const code=data.destinations.find(d=>d.id===destination)?.receipt_code;setPreview({token:'0'.repeat(32),mapping:receipts.map((r,i)=>({id:r.id,previous:r.receipt_number||r.folio,next:code+'-'+String(start+i).padStart(3,'0')}))});}
+  else setPreview((await command({action:'reorganize_preview',payload:{destination_id:destination,start_number:start}})).data);
+ }catch(e){setError((e as Error).message);}finally{setLoading(false);}}
+ return <section className="maintenance-panel">{status.reorganization_enabled&&<button className="button subtle" onClick={()=>setOpen(true)}><RefreshCw size={16}/>Reorganizar comprobantes</button>}{status.jobs.filter(j=>j.state!=='done').map(j=><p role="status" key={j.id}>{j.kind==='delete'?'Limpieza de archivos pendiente':'Reorganización en curso'}{j.error?' · '+j.error:''}</p>)}{error&&!open&&<p role="alert">{error}</p>}
+ {open&&<Modal title="Reorganizar comprobantes" onClose={()=>setOpen(false)} locked={busy}><p>Herramienta temporal. Renumera los comprobantes propios del destino por fecha real de entrega y actualiza los PDF y Drive.</p><label>Destino<select value={destination} onChange={e=>{setDestination(e.target.value);setPreview(null);}}><option value="">Selecciona un destino</option>{data.destinations.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label><label>Primer número<input type="number" min={1} max={1000000000} step={1} value={start} onChange={e=>{setStart(e.target.valueAsNumber);setPreview(null);}}/></label><button className="button subtle" disabled={!destination||!Number.isInteger(start)||start<1||loading||busy||!online} onClick={inspect}>Ver cambios</button>{preview&&<><div className="renumber-preview">{preview.mapping.map(row=><p key={row.id}>{row.previous} → <strong>{row.next}</strong></p>)}</div>{!preview.mapping.length?<p>No hay comprobantes propios para reorganizar.</p>:<button className="button danger" disabled={busy||!online} onClick={async()=>{try{await run('reorganize_receipts',{destination_id:destination,start_number:start,token:preview.token});setOpen(false);setPreview(null);notify('Reorganización iniciada. Consulta aquí su progreso.');}catch(e){setError((e as Error).message);setPreview(null);}}}>Confirmar reorganización</button>}</>}{error&&<p role="alert" className="form-error">{error}</p>}</Modal>}
+ </section>;
+}

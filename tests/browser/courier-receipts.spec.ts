@@ -27,20 +27,24 @@ for(const isAdmin of [false,true])test(`confirmation never asks a ${isAdmin?'cou
    const r=data.receipts[0];servedPDF ||= await buildReceiptPDF(r,Buffer.from(r.signature_data!.split(',')[1],'base64'),{assets:await serverReceiptAssets(4),demonstration:true});
    await route.fulfill({contentType:'application/pdf',body:Buffer.from(servedPDF)});
  });
- await page.route('**/api/receipt-state?**',route=>route.fulfill({json:{receipt:data.receipts[0],versions:[4],drive_status:'reconnect',originalAvailable:false}}));
+ let releaseState:()=>void=()=>{};const stateGate=new Promise<void>(resolve=>{releaseState=resolve;});
+ await page.route('**/api/receipt-state?**',async route=>{await stateGate;return route.fulfill({json:{receipt:data.receipts[0],versions:[4],drive_status:'reconnect',originalAvailable:false}});});
  await page.route('**/api/drive-*',route=>{driveRequests.push(new URL(route.request().url()).pathname);return route.fulfill({json:{configured:true,connected:false,state:'reconnect',email:'puntodeentregasminue@gmail.com'}});});
  await page.goto('/');await page.getByLabel('Correo electrónico').fill('courier@example.com');await page.getByLabel('Contraseña',{exact:true}).fill('synthetic-test-password');await page.getByRole('button',{name:'Ingresar a Minue'}).click();
  await page.getByRole('button',{name:/01 Veterinaria Huellitas/}).click();await page.getByRole('button',{name:'Confirmar entrega',exact:true}).click();
  await page.getByRole('combobox',{name:/Quién recibe/}).selectOption('new');await page.getByRole('textbox',{name:'Nombre y apellido'}).fill('Persona de prueba');
  const signature=page.getByLabel('Dibuja la firma de quien recibe');await signature.scrollIntoViewIfNeeded();const box=(await signature.boundingBox())!;await page.mouse.move(box.x+30,box.y+80);await page.mouse.down();await page.mouse.move(box.x+120,box.y+110,{steps:20});await page.mouse.move(box.x+200,box.y+50,{steps:20});await page.mouse.up();
  await page.getByRole('button',{name:'Confirmar y generar comprobante'}).click();
- await expect(page.getByRole('button',{name:'Pantalla completa para foto'})).toBeEnabled({timeout:15000});
- await expect(page.getByText('Entrega confirmada. Comprobante disponible en Minue.')).toBeVisible();
- await expect(page.getByRole('dialog').getByText(/Drive|conexión|verificar/i)).toHaveCount(0);
+ await expect(page.getByRole('status',{name:'Preparando comprobante'})).toBeVisible();
+ await page.emulateMedia({reducedMotion:'reduce'});expect(await page.locator('.skeleton-brand').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
+ releaseState();
+ await expect(page.locator('.receipt-document')).toBeVisible({timeout:15000});
+ await expect(page.getByText('Entrega confirmada.')).toBeVisible();
+ await expect(page.getByRole('dialog')).toHaveCount(0);
  expect(driveRequests).toEqual([]);expect(externalRequests).toEqual([]);
  const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar comprobante PDF'}).click();const download=await downloadPromise;
  expect(Buffer.from(await readFile((await download.path())!))).toEqual(Buffer.from(servedPDF!));
- await page.getByRole('button',{name:'Volver a mis entregas'}).click();await page.getByRole('button',{name:'Ver mi perfil',exact:true}).click();
+ await page.getByRole('button',{name:'Regresar a mis entregas'}).click();await page.getByRole('button',{name:'Ver mi perfil',exact:true}).click();
  if(isAdmin){await expect(page.getByRole('button',{name:'Conectar Google Drive',exact:true})).toBeVisible();await expect(page.getByText('Requiere reconexión de Drive.',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Reintentar',exact:true})).toBeDisabled();}
  else {await expect(page.getByRole('button',{name:'Conectar Google Drive',exact:true})).toHaveCount(0);expect(driveRequests).toEqual([]);}
  expect(errors).toEqual([]);

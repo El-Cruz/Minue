@@ -7,7 +7,22 @@ export function demoCommand(data: Data, actorId: string, action: string, payload
   const now = new Date().toISOString();
   const id = () => crypto.randomUUID();
   const event = (delivery_id: string, kind: Data['events'][number]['kind'], note: string) => next.events.push({ id: id(), delivery_id, actor_id: actorId, kind, note, created_at: now });
-  if (action === 'save_destination' || action === 'save_product') {
+  const actor=next.profiles.find(p=>p.id===actorId);
+  if(!actor?.active)throw new Error('Cuenta inactiva.');
+  if(['delete_delivery','reorganize_receipts'].includes(action)&&!actor.is_superadmin)throw new Error('Se requiere superadministración.');
+  if(['delete_product','delete_destination'].includes(action)&&!actor.is_admin)throw new Error('Se requiere administración.');
+  if(action==='save_product'&&/bark.*bites/i.test(String(payload.name)))payload={...payload,unit:'unidad',category:'cookies'};
+  if(action==='delete_delivery'){
+    const receipt=next.receipts.find(r=>r.delivery_id===payload.delivery_id);if(receipt?.legacy_id)throw new Error('Los originales históricos se conservan.');
+    next.deliveries=next.deliveries.filter(d=>d.id!==payload.delivery_id);next.receipts=next.receipts.filter(r=>r.delivery_id!==payload.delivery_id);next.events=next.events.filter(e=>e.delivery_id!==payload.delivery_id);
+  }else if(action==='delete_product'||action==='delete_destination'){
+    const used=next.deliveries.some(d=>action==='delete_product'?d.items.some(i=>i.product_id===payload.id):d.destination_id===payload.id);
+    if(action==='delete_product'){if(used){const p=next.products.find(p=>p.id===payload.id)!;p.active=false;p.retired=true;}else next.products=next.products.filter(p=>p.id!==payload.id);}
+    else if(used){const d=next.destinations.find(d=>d.id===payload.id)!;d.active=false;d.retired=true;}else{next.destinations=next.destinations.filter(d=>d.id!==payload.id);next.contacts=next.contacts.filter(c=>c.destination_id!==payload.id);}
+  }else if(action==='reorganize_receipts'){
+    const d=next.destinations.find(d=>d.id===payload.destination_id)!;const receipts=next.receipts.filter(r=>!r.legacy_id&&next.deliveries.some(x=>x.id===r.delivery_id&&x.destination_id===d.id)).sort((a,b)=>a.snapshot.confirmed_at.localeCompare(b.snapshot.confirmed_at)||a.id.localeCompare(b.id));
+    receipts.forEach((r,i)=>{r.receipt_number=d.receipt_code+'-'+String(Number(payload.start_number)+i).padStart(3,'0');});d.receipt_next_number=Number(payload.start_number)+receipts.length;
+  }else if (action === 'save_destination' || action === 'save_product') {
     const collection = action === 'save_destination' ? next.destinations : next.products;
     const index = collection.findIndex(entry => entry.id === payload.id);
     const value = { ...(index>=0?collection[index]:{}), ...payload, id: payload.id || id(), active: payload.active ?? true, ...(action==='save_destination'?{receipt_next_number:payload.receipt_next_number ?? (index>=0?next.destinations[index]?.receipt_next_number:1)}:{}) } as never;
@@ -19,6 +34,7 @@ export function demoCommand(data: Data, actorId: string, action: string, payload
   } else if (action === 'save_delivery') {
     const index = next.deliveries.findIndex(entry => entry.id === payload.id);
     if (index >= 0 && next.deliveries[index].status === 'delivered') throw new Error('Una entrega confirmada no se puede modificar.');
+    const submitted=payload.items as Data['deliveries'][number]['items'];if(submitted.some(i=>i.unit==='unidad'&&!Number.isInteger(i.quantity)))throw new Error('Los frascos se entregan en unidades enteras.');
     const value = { ...payload, id: payload.id || id(), status: 'pending', created_at: index >= 0 ? next.deliveries[index].created_at : now } as Data['deliveries'][number];
     if (index >= 0) next.deliveries[index] = value; else next.deliveries.push(value);
     event(value.id, index >= 0 ? 'updated' : 'created', 'Entrega programada');
@@ -61,7 +77,9 @@ export function demoCommand(data: Data, actorId: string, action: string, payload
     member.active=false;
   } else if (action === 'update_profile') {
     const profile = next.profiles.find(p => p.id === payload.id)!;
-    Object.assign(profile, payload);
+    if(profile.is_superadmin&&(!actor.is_superadmin||!payload.active||!payload.is_admin))throw new Error('Cuenta protegida.');
+    if(payload.is_superadmin!==undefined&&!actor.is_superadmin)throw new Error('Se requiere superadministración.');
+    Object.assign(profile,payload);
   } else throw new Error('Acción no disponible.');
   return next;
 }

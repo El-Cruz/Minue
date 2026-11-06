@@ -18,7 +18,7 @@ export function serverReceiptAssets(version = 2): Promise<ReceiptAssets> {
     .catch(error=>{assets.delete(version);throw error;});
   assets.set(version,pending);return pending;
 }
-export async function ensureReceiptPDF(client: SupabaseClient, receipt: Receipt, original = false): Promise<Uint8Array> {
+async function generateReceiptPDF(client: SupabaseClient, receipt: Receipt, original = false): Promise<Uint8Array> {
   if(receipt.legacy_id){
     if(!receipt.pdf_path)throw new HttpError(409,'El comprobante histórico se conserva en Google Drive. Abre su enlace original.');
     const saved=await client.storage.from(BUCKET).download(receipt.pdf_path);
@@ -27,7 +27,7 @@ export async function ensureReceiptPDF(client: SupabaseClient, receipt: Receipt,
   }
   if (!receipt.receipt_number && !original) throw new HttpError(503,'Falta activar la actualización de comprobantes en Supabase.');
   const version = receipt.template_version===4?4:receipt.template_version===3?3:2;
-  const path = original ? receipt.pdf_path || 'receipts/' + receipt.id + '.pdf' : 'receipts/' + receipt.id + '/v'+version+'.pdf';
+  const path = !original && receipt.current_pdf_path ? receipt.current_pdf_path : original ? receipt.pdf_path || 'receipts/' + receipt.id + '.pdf' : 'receipts/' + receipt.id + '/v'+version+'.pdf';
   const existing = await client.storage.from(BUCKET).download(path);
   if (!existing.error && existing.data) return new Uint8Array(await existing.data.arrayBuffer());
   if (original) throw new HttpError(404,'El archivo original no está disponible.');
@@ -44,4 +44,14 @@ export async function ensureReceiptPDF(client: SupabaseClient, receipt: Receipt,
   const updated = await client.from('receipt_documents').update({checksum:createHash('sha256').update(stored).digest('hex')}).eq('receipt_id',receipt.id).eq('version',version);
   if (updated.error) throw new HttpError(503,'El comprobante está guardado, pero falta actualizar su estado.');
   return stored;
+}
+
+export async function ensureReceiptPDF(client: SupabaseClient, receipt: Receipt, original=false, maintenance=false): Promise<Uint8Array> {
+  const {data:lease,error}=await client.rpc('minue_maintenance',{p_action:'acquire_pdf',p_payload:{receipt_id:receipt.id,maintenance}});
+  if(error)throw new HttpError(409,'El comprobante se está preparando o reorganizando. Vuelve a intentarlo.');
+  try {
+    const fresh=await client.from('receipts').select('*').eq('id',receipt.id).single();
+    if(fresh.error || !fresh.data)throw new HttpError(404,'No se encontró el comprobante.');
+    return await generateReceiptPDF(client,fresh.data as Receipt,original);
+  } finally {await client.rpc('minue_maintenance',{p_action:'release_pdf',p_payload:{receipt_id:receipt.id,lease}});}
 }

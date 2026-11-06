@@ -1,3 +1,4 @@
+import { processMaintenance } from '../server/maintenance.js';
 import { waitUntil } from '@vercel/functions';
 import { processDriveJobs } from '../server/drive.js';
 import type { ServerResponse } from 'node:http';
@@ -16,6 +17,8 @@ export default async function handler(req: Request, res: ServerResponse) {
     try { validated = validateCommand(input?.action, input?.payload); } catch (e) { throw new HttpError(400, (e as Error).message); }
     const { action, payload } = validated;
     if (!['confirm_delivery', 'fail_delivery'].includes(action) && !profile.is_admin) throw new HttpError(403, 'Esta acción requiere permisos de administración.');
+    if (['delete_delivery','reorganize_preview','reorganize_receipts','maintenance_status'].includes(action) && !profile.is_superadmin) throw new HttpError(403,'Se requiere superadministración.');
+    if (action.startsWith('reorganize_') && process.env.ENABLE_RECEIPT_REORGANIZATION === 'false') throw new HttpError(403,'La reorganización temporal está deshabilitada.');
     if (action === 'remove_member') {
       if (payload.id === user.id) throw new HttpError(409, 'No puedes eliminar tu propia cuenta de administración.');
       const { data: member, error: memberError } = await client.from('profiles').select('*').eq('id', payload.id).single();
@@ -65,6 +68,8 @@ export default async function handler(req: Request, res: ServerResponse) {
       try { await ensureReceiptPDF(client, receipt); }
       catch { return json(res, 200, { ok: true, data: receipt, pdf_pending: true, message: 'Entrega confirmada. El PDF se podrá generar desde el historial.' }); }
     }
+    if (['delete_delivery','reorganize_receipts','maintenance_status'].includes(action)) waitUntil(processMaintenance(client).then(()=>processDriveJobs(client)).catch(()=>console.warn('maintenance_pending')));
+    if (action === 'maintenance_status' && process.env.ENABLE_RECEIPT_REORGANIZATION === 'false') data.reorganization_enabled=false;
     return json(res, 200, { ok: true, data });
   } catch (e) { return fail(res, e); }
 }

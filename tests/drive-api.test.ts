@@ -19,7 +19,7 @@ function request(overrides:Partial<Request>={}){return {method:'GET',url:'/api/d
 beforeEach(()=>{
   vi.clearAllMocks();state.profile={is_admin:true,active:true};
   for(const [key,value] of Object.entries({GOOGLE_DRIVE_CLIENT_ID:'client-id',GOOGLE_DRIVE_CLIENT_SECRET:'test-client-secret',DRIVE_TOKEN_ENCRYPTION_KEY:Buffer.alloc(32,9).toString('base64'),DRIVE_WORKER_SECRET:'test-worker-secret',APP_URL:'https://minue.example'}))vi.stubEnv(key,value);
-  state.rpc.mockResolvedValue({data:null,error:null});
+  state.rpc.mockImplementation(async(name:string,args:any)=>({data:name==='minue_maintenance'&&args.p_action==='claim'?[]:null,error:null}));
   state.fetch.mockImplementation(async(input:string)=>input.includes('/token')?Response.json({access_token:'access',refresh_token:'private-refresh-token'}):Response.json({email:DRIVE_EMAIL,email_verified:true}));
   vi.stubGlobal('fetch',state.fetch);
 });

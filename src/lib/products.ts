@@ -1,0 +1,4 @@
+import type {DeliveryItem,Product} from './types';
+export const proteins={chicken:'Pollo',beef:'Res',fish:'Pescado',turkey:'Pavo',pork:'Cerdo',mixed:'Mixta',other:'Otra'};
+export function productProtein(p:Product):keyof typeof proteins {if(p.protein&&p.protein!=='other')return p.protein;const n=p.name.toLowerCase();return n.includes('pollo')?'chicken':n.includes('res')?'beef':n.includes('pescado')||n.includes('salmón')?'fish':n.includes('pavo')?'turkey':n.includes('cerdo')?'pork':'other';}
+export function itemTotals(items:DeliveryItem[]){const totals=new Map<string,number>();for(const item of items){const unit=['1 kg','1kg'].includes(item.unit)?'kg':item.unit;totals.set(unit,(totals.get(unit)||0)+item.quantity);}return [...totals].map(([unit,n])=>new Intl.NumberFormat('es-EC',{maximumFractionDigits:3}).format(n)+' '+unit).join(' · ');}
